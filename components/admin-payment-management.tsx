@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { getAuth } from 'firebase/auth';
+import { useAppwriteAuth } from '@/hooks/useAppwriteAuth';
 import { toast } from 'react-toastify';
 import { 
   CheckCircle, 
@@ -29,12 +29,13 @@ import {
   rejectPayment,
   addAdminPayment,
   deletePayment
-} from '@/data/payment-data';
-import { fetchStudentAllocations, getRoomDetailsFromAllocation } from '@/data/hostel-data';
+} from '@/data/appwrite-payment-data';
+import { fetchAllocationByStudent, getRoomDetailsFromAllocation } from '@/data/appwrite-hostel-data';
 import { Payment, RoomAllocation } from '@/types/hostel';
 import BankingDetails from '@/components/banking-details';
 
 const AdminPaymentManagement: React.FC = () => {
+  const { user } = useAppwriteAuth();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [pendingPayments, setPendingPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,8 +60,7 @@ const AdminPaymentManagement: React.FC = () => {
   const [allowAmountEdit, setAllowAmountEdit] = useState(false);
   const [roomInfo, setRoomInfo] = useState<{hostelName: string, roomNumber: string, floorName: string} | null>(null);
 
-  const auth = getAuth();
-  const adminEmail = auth.currentUser?.email || '';
+  const adminEmail = user?.email || '';
 
   useEffect(() => {
     loadData();
@@ -90,16 +90,15 @@ const AdminPaymentManagement: React.FC = () => {
 
     try {
       setIsLoadingAmount(true);
-      const allocations = await fetchStudentAllocations(studentRegNumber);
-      const unpaidAllocation = allocations.find(a => a.paymentStatus !== 'Paid');
+      const allocation = await fetchAllocationByStudent(studentRegNumber);
       
-      if (unpaidAllocation) {
-        const roomDetails = await getRoomDetailsFromAllocation(unpaidAllocation);
+      if (allocation && allocation.paymentStatus !== 'Paid') {
+        const roomDetails = await getRoomDetailsFromAllocation(allocation);
         if (roomDetails) {
           setAddPaymentForm(prev => ({ 
             ...prev, 
             amount: roomDetails.price.toString(),
-            allocationId: unpaidAllocation.id 
+            allocationId: allocation.id 
           }));
           setRoomInfo({
             hostelName: roomDetails.hostel.name,

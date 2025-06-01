@@ -4,86 +4,74 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import RoomSelection from '@/components/room-selection';
 import { StudentProfile } from '@/components/student-profile';
-import { getAuth } from 'firebase/auth';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { useAppwriteAuth } from '@/hooks/useAppwriteAuth';
+import { getStudentByRegNumber, getStudentByUserId } from '@/data/appwrite-student-data';
+import { getApplicationByRegNumber } from '@/data/appwrite-data';
 import { toast } from 'react-toastify';
 import { LoadingSpinner } from '@/components/loading-spinner';
 
 const RoomSelectionPage: React.FC = () => {
+  const { user } = useAppwriteAuth();
   const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [application, setApplication] = useState<any>(null);
   const [fetchAttempted, setFetchAttempted] = useState(false);
+
   useEffect(() => {
-    if (!fetchAttempted) {
+    if (!fetchAttempted && user) {
       setFetchAttempted(true);
       fetchStudentProfile();
     }
-  }, [fetchAttempted]);
+  }, [fetchAttempted, user]);
 
   const fetchStudentProfile = async () => {
     try {
-      const auth = getAuth();
-      const user = auth.currentUser;
+      if (!user || !user.email) {
+        setLoading(false);
+        return;
+      }
+
+      let regNumber = '';
+      let studentData = null;
       
-      if (user && user.email) {
+      // First try to get student by user ID
+      studentData = await getStudentByUserId(user.$id);
+      
+      if (studentData) {
+        regNumber = studentData.regNumber;
+      } else {
+        // Fall back to email-based logic for backwards compatibility
         const emailDomain = user.email.split('@')[1];
-        let regNumber = '';
         
         if (emailDomain === 'hit.ac.zw') {
           // For hit.ac.zw emails, use email prefix as registration number
           regNumber = user.email.split('@')[0];
-        } else if (emailDomain === 'gmail.com') {
-          // For gmail.com emails, query the database to find the registration number
-          try {
-            const studentsQuery = query(
-              collection(db, 'students'),
-              where('email', '==', user.email)
-            );
-            const querySnapshot = await getDocs(studentsQuery);
-            
-            if (!querySnapshot.empty) {
-              regNumber = querySnapshot.docs[0].id;
-            } else {
-              // User not found in database - don't show toast here, let the UI handle it
-              console.log('User not found in database');
-              setLoading(false);
-              return;
-            }
-          } catch (queryError) {
-            console.error('Error querying student by email:', queryError);
-            // Don't show toast here, let the general error handler deal with it
-            setLoading(false);
-            return;
-          }
+          studentData = await getStudentByRegNumber(regNumber);
         } else {
-          // Unsupported email domain - don't show toast here, let the UI handle it
-          console.log('Unsupported email domain');
+          // For other emails, we already tried userId lookup above
+          console.log('User not found in database');
           setLoading(false);
           return;
         }
-        
-        const userDoc = doc(db, 'students', regNumber);
-        const applicationDoc = doc(db, 'applications', regNumber);
-        
-        const [userSnap, applicationSnap] = await Promise.all([
-          getDoc(userDoc),
-          getDoc(applicationDoc)
-        ]);
-        
-        if (userSnap.exists()) {
-          setStudentProfile(userSnap.data() as StudentProfile);
-        }
-        // Don't show toast if profile doesn't exist - let the UI handle it
+      }
 
-        if (applicationSnap.exists()) {
-          setApplication(applicationSnap.data());
+      if (studentData) {
+        // Transform data to match component interface
+        const transformedData = {
+          ...studentData,
+          id: studentData.$id || '',
+          part: studentData.part?.toString() as "1" | "2" | "3" | "4" | "5" | undefined
+        };
+        setStudentProfile(transformedData);
+        
+        // Fetch application data
+        const applicationData = await getApplicationByRegNumber(regNumber);
+        if (applicationData) {
+          setApplication(applicationData);
         }
       }
     } catch (error) {
       console.error('Error fetching student profile:', error);
-      // Only show one toast for general errors
       toast.error('Failed to load student data');
     } finally {
       setLoading(false);

@@ -23,11 +23,10 @@ import {
   XCircle
 } from 'lucide-react';
 import { Hostel, Room } from '@/types/hostel';
-import { fetchHostels, allocateRoom, fetchStudentAllocations, fetchHostelSettings } from '@/data/hostel-data';
+import { fetchHostels, allocateRoom, fetchAllocationByStudent, fetchHostelSettings } from '@/data/appwrite-hostel-data';
+import { getStudentByUserId } from '@/data/appwrite-student-data';
+import { useAppwriteAuth } from '@/hooks/useAppwriteAuth';
 import { StudentProfile } from './student-profile';
-import { getAuth } from 'firebase/auth';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import StudentPaymentManagement from './student-payment-management';
 
 interface RoomSelectionProps {
@@ -36,6 +35,7 @@ interface RoomSelectionProps {
 }
 
 const RoomSelection: React.FC<RoomSelectionProps> = ({ onRoomSelected, studentProfile }) => {
+  const { user } = useAppwriteAuth();
   const [hostels, setHostels] = useState<Hostel[]>([]);
   const [selectedHostel, setSelectedHostel] = useState<string>('');
   const [selectedFloor, setSelectedFloor] = useState<string>('all');
@@ -76,66 +76,42 @@ const RoomSelection: React.FC<RoomSelectionProps> = ({ onRoomSelected, studentPr
     } catch (error) {
       console.error('Failed to load hostel settings:', error);
     }
-  };const checkExistingAllocation = async () => {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (user) {
-      const emailDomain = user.email?.split("@")[1] || "";
-      let regNumber = "";
-
-      try {
-        if (emailDomain === "hit.ac.zw") {
-          // For hit.ac.zw domain users
-          regNumber = user.email?.split("@")[0] || "";
-        } else if (emailDomain === "gmail.com" && user.email) {
-          // For gmail.com users, find them by email first
-          const usersRef = collection(db, "students");
-          const q = query(usersRef, where("email", "==", user.email));
-          const querySnapshot = await getDocs(q);
-
-          if (!querySnapshot.empty) {
-            // User exists in database
-            const userData = querySnapshot.docs[0].data();
-            regNumber = userData.regNumber || "";
-          } else {
-            // User doesn't exist in database
-            console.log("User not found in database");
-            return;
-          }
-        } else {
-          // Unsupported email domain
-          console.log("Unsupported email domain");
-          return;
-        }
-
-        if (regNumber) {
-          const allocations = await fetchStudentAllocations(regNumber);
-          if (allocations.length > 0) {
-            setExistingAllocation(allocations[0]);
-            
-            // Fetch room details for the allocation
-            const allocation = allocations[0];
-            const hostel = hostels.find(h => h.id === allocation.hostelId);
-            if (hostel) {
-              let roomDetails = null;
-              hostel.floors.forEach(floor => {
-                floor.rooms.forEach(room => {
-                  if (room.id === allocation.roomId) {
-                    roomDetails = {
-                      ...room,
-                      hostelName: hostel.name,
-                      floorName: floor.name
-                    };
-                  }
-                });
-              });
-              setAllocationRoomDetails(roomDetails);
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Error checking existing allocation:", error);
+  };  const checkExistingAllocation = async () => {
+    if (!user) return;
+    
+    try {
+      // Get student profile using Appwrite user ID
+      const student = await getStudentByUserId(user.$id);
+      
+      if (!student) {
+        console.log("Student profile not found");
+        return;
       }
+
+      const allocations = await fetchAllocationByStudent(student.regNumber);
+      if (allocations) {
+        setExistingAllocation(allocations);
+        
+        // Fetch room details for the allocation
+        const hostel = hostels.find(h => h.id === allocations.hostelId);
+        if (hostel) {
+          let roomDetails = null;
+          hostel.floors.forEach(floor => {
+            floor.rooms.forEach(room => {
+              if (room.id === allocations.roomId) {
+                roomDetails = {
+                  ...room,
+                  hostelName: hostel.name,
+                  floorName: floor.name
+                };
+              }
+            });
+          });
+          setAllocationRoomDetails(roomDetails);
+        }
+      }
+    } catch (error) {
+      console.error("Error checking existing allocation:", error);
     }
   };
 
@@ -197,46 +173,22 @@ const RoomSelection: React.FC<RoomSelectionProps> = ({ onRoomSelected, studentPr
     // Reset the selecting state after a short delay
     setTimeout(() => setIsSelecting(false), 1000);
   };  const confirmRoomSelection = async () => {
-    if (!selectedRoom || !studentProfile || isSelecting) return;
+    if (!selectedRoom || !user || isSelecting) return;
 
     try {
       setIsSelecting(true);
-      const auth = getAuth();
-      const user = auth.currentUser;
-      if (!user) return;
-
-      const emailDomain = user.email?.split("@")[1] || "";
-      let regNumber = "";
-
-      if (emailDomain === "hit.ac.zw") {
-        // For hit.ac.zw domain users
-        regNumber = user.email?.split("@")[0] || "";
-      } else if (emailDomain === "gmail.com" && user.email) {
-        // For gmail.com users, find them by email first
-        const usersRef = collection(db, "students");
-        const q = query(usersRef, where("email", "==", user.email));
-        const querySnapshot = await getDocs(q);
-
-        if (!querySnapshot.empty) {
-          // User exists in database
-          const userData = querySnapshot.docs[0].data();
-          regNumber = userData.regNumber || "";
-        } else {
-          toast.error("Profile not found. Please complete your profile first.");
-          return;
-        }
-      } else {
-        toast.error("Unsupported email domain.");
+      
+      // Get student profile using Appwrite user ID
+      const student = await getStudentByUserId(user.$id);
+      
+      if (!student) {
+        toast.error("Profile not found. Please complete your profile first.");
         return;
       }
-
-      if (!regNumber) {
-        toast.error("Registration number not found. Please complete your profile first.");
-        return;      }
       
       // Fetch settings to get the grace period (deadline)
       const settings = await fetchHostelSettings();
-      await allocateRoom(regNumber, selectedRoom.id, selectedHostel);
+      await allocateRoom(student.regNumber, selectedRoom.id, selectedHostel);
       
       const deadlineHours = settings.paymentGracePeriod;
       const deadlineDays = Math.round(deadlineHours / 24);

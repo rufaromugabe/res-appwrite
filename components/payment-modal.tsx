@@ -3,7 +3,6 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
-import { setDoc, doc, getFirestore } from "firebase/firestore";
 import { toast } from "react-toastify";
 import {
   Select,
@@ -12,9 +11,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { fetchStudentAllocations } from "@/data/hostel-data";
-import { addAdminPayment } from "@/data/payment-data";
-import { getAuth } from "firebase/auth";
+import { fetchAllocationByStudent } from "@/data/appwrite-hostel-data";
+import { addAdminPayment } from "@/data/appwrite-payment-data";
+import { updateApplicationPayment } from "@/data/appwrite-data";
+import { useAppwriteAuth } from "@/hooks/useAppwriteAuth";
 import { Payment } from "@/types/hostel";
 import BankingDetails from "@/components/banking-details";
 
@@ -33,6 +33,7 @@ const PAYMENT_STATUSES = [
 ];
 
 const PaymentStatusModal = ({ isOpen, onClose, student, onUpdate }: PaymentStatusModalProps) => {
+  const { user } = useAppwriteAuth();
   const [paymentStatus, setPaymentStatus] = useState("Not Paid");
   const [reference, setReference] = useState("");
   const [showAddPayment, setShowAddPayment] = useState(false);
@@ -44,8 +45,6 @@ const PaymentStatusModal = ({ isOpen, onClose, student, onUpdate }: PaymentStatu
     paymentMethod: 'Bank Transfer' as Payment['paymentMethod'],
     notes: ''
   });
-
-  const auth = getAuth();
 
   // Update state when the modal opens with new student data
   useEffect(() => {
@@ -67,11 +66,8 @@ const PaymentStatusModal = ({ isOpen, onClose, student, onUpdate }: PaymentStatu
       return;
     }
   
-    const db = getFirestore();
-    const studentRef = doc(db, "applications", student.regNumber);
-  
     try {
-      await setDoc(studentRef, { paymentStatus, reference }, { merge: true });
+      await updateApplicationPayment(student.regNumber, paymentStatus, reference);
   
       toast.success("Payment status updated successfully!");
   
@@ -93,19 +89,18 @@ const PaymentStatusModal = ({ isOpen, onClose, student, onUpdate }: PaymentStatu
 
     try {
       // Find student's allocation
-      const allocations = await fetchStudentAllocations(student.regNumber);
-      const unpaidAllocation = allocations.find(a => a.paymentStatus !== 'Paid');
+      const allocation = await fetchAllocationByStudent(student.regNumber);
       
-      if (!unpaidAllocation) {
+      if (!allocation || allocation.paymentStatus === 'Paid') {
         toast.error('No unpaid allocation found for this student');
         return;
       }
 
-      const adminEmail = auth.currentUser?.email || '';
+      const adminEmail = user?.email || '';
       
       await addAdminPayment({
         studentRegNumber: student.regNumber,
-        allocationId: unpaidAllocation.id,
+        allocationId: allocation.id,
         receiptNumber: paymentForm.receiptNumber,
         amount: parseFloat(paymentForm.amount),
         paymentMethod: paymentForm.paymentMethod,
@@ -113,10 +108,7 @@ const PaymentStatusModal = ({ isOpen, onClose, student, onUpdate }: PaymentStatu
       }, adminEmail);
 
       // Update student payment status to Paid
-      await setDoc(doc(getFirestore(), "applications", student.regNumber), { 
-        paymentStatus: "Paid", 
-        reference: paymentForm.receiptNumber 
-      }, { merge: true });
+      await updateApplicationPayment(student.regNumber, "Paid", paymentForm.receiptNumber);
 
       toast.success('Payment added and approved successfully!');
       onUpdate({ ...student, paymentStatus: "Paid", reference: paymentForm.receiptNumber });

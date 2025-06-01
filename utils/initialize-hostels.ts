@@ -1,5 +1,4 @@
-// filepath: c:\Users\rufaro\Documents\Projects\res-portal-deploy\utils\initialize-hostels.ts
-import { createHostel, fetchHostels } from '../data/hostel-data';
+import { createHostel, fetchHostels } from '../data/appwrite-hostel-data';
 import { initialHostelData } from '../data/initial-hostel-data';
 
 /**
@@ -28,7 +27,7 @@ export const checkAndInitializeHostels = async (): Promise<boolean> => {
     }
 
     isInitializing = true;
-    console.log('Checking for existing hostels in Firebase...');
+    console.log('Checking for existing hostels in Appwrite...');
     
     // Fetch existing hostels
     const existingHostels = await fetchHostels();

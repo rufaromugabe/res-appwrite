@@ -8,9 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { getAuth } from 'firebase/auth';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { useAppwriteAuth } from '@/hooks/useAppwriteAuth';
 import { toast } from 'react-toastify';
 import { Plus, Edit, Eye, AlertTriangle, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { 
@@ -18,8 +16,9 @@ import {
   submitPayment, 
   updateStudentPayment, 
   fetchPaymentForAllocation 
-} from '@/data/payment-data';
-import { fetchStudentAllocations, getRoomDetailsFromAllocation, fetchAllocationById } from '@/data/hostel-data';
+} from '@/data/appwrite-payment-data';
+import { fetchAllocationByStudent, getRoomDetailsFromAllocation, fetchAllocationById } from '@/data/appwrite-hostel-data';
+import { getStudentByUserId } from '@/data/appwrite-student-data';
 import { Payment, RoomAllocation } from '@/types/hostel';
 import BankingDetails from '@/components/banking-details';
 
@@ -46,7 +45,7 @@ const StudentPaymentManagement: React.FC<StudentPaymentManagementProps> = ({ stu
     notes: ''
   });
 
-  const auth = getAuth();
+  const { user } = useAppwriteAuth();
 
   // Function to determine registration number based on email domain
   const determineRegNumber = async (): Promise<string> => {
@@ -54,7 +53,6 @@ const StudentPaymentManagement: React.FC<StudentPaymentManagementProps> = ({ stu
       return studentRegNumber;
     }
 
-    const user = auth.currentUser;
     if (!user || !user.email) {
       return '';
     }
@@ -65,23 +63,17 @@ const StudentPaymentManagement: React.FC<StudentPaymentManagementProps> = ({ stu
       // For hit.ac.zw domain users
       return user.email.split("@")[0] || "";
     } else if (emailDomain === "gmail.com") {
-      // For gmail.com users, find them by email first
+      // For gmail.com users, find them by user ID first
       try {
-        const usersRef = collection(db, "students");
-        const q = query(usersRef, where("email", "==", user.email));
-        const querySnapshot = await getDocs(q);
-
-        if (!querySnapshot.empty) {
-          // User exists in database
-          const userData = querySnapshot.docs[0].data();
-          return userData.regNumber || "";
+        const studentData = await getStudentByUserId(user.$id);
+        if (studentData) {
+          return studentData.regNumber || "";
         } else {
-          // User doesn't exist in database
           console.log("User not found in database");
           return "";
         }
       } catch (error) {
-        console.error("Error finding user by email:", error);
+        console.error("Error finding user by ID:", error);
         return "";
       }
     } else {
@@ -98,34 +90,36 @@ const StudentPaymentManagement: React.FC<StudentPaymentManagementProps> = ({ stu
     };
 
     initializeRegNumber();
-  }, [studentRegNumber, auth.currentUser]);
+  }, [studentRegNumber, user]);
 
   useEffect(() => {
     if (regNumber) {
       loadData();
     }
-  }, [regNumber]);const loadData = async () => {
+  }, [regNumber]);  const loadData = async () => {
     try {
       setLoading(true);
-      const [paymentsData, allocationsData] = await Promise.all([
+      const [paymentsData, allocationData] = await Promise.all([
         fetchStudentPayments(regNumber),
-        fetchStudentAllocations(regNumber)
+        fetchAllocationByStudent(regNumber)
       ]);
       
       setPayments(paymentsData);
-      setAllocations(allocationsData);
+      // Convert single allocation to array for compatibility
+      const allocationsArray = allocationData ? [allocationData] : [];
+      setAllocations(allocationsArray);
       
       // Load room details for each allocation and for payments that might reference older allocations
       const details: {[key: string]: {roomNumber: string, hostelName: string, price: number}} = {};
       
       // Get unique allocation IDs from both current allocations and payment records
       const allAllocationIds = new Set([
-        ...allocationsData.map(a => a.id),
+        ...allocationsArray.map(a => a.id),
         ...paymentsData.map(p => p.allocationId)
       ]);
-        for (const allocationId of Array.from(allAllocationIds)) {
+      for (const allocationId of Array.from(allAllocationIds)) {
         // First try to find in current allocations
-        let allocation = allocationsData.find(a => a.id === allocationId);
+        let allocation = allocationsArray.find(a => a.id === allocationId);
         
         // If not found in current allocations, try to fetch it (might be an old allocation)
         if (!allocation) {
@@ -142,13 +136,15 @@ const StudentPaymentManagement: React.FC<StudentPaymentManagementProps> = ({ stu
           }
         }
         
-        const roomDetails = await getRoomDetailsFromAllocation(allocation);
-        if (roomDetails) {
-          details[allocation.id] = {
-            roomNumber: roomDetails.room.number,
-            hostelName: roomDetails.hostel.name,
-            price: roomDetails.price
-          };
+        if (allocation) {
+          const roomDetails = await getRoomDetailsFromAllocation(allocation);
+          if (roomDetails) {
+            details[allocation.id] = {
+              roomNumber: roomDetails.room.number,
+              hostelName: roomDetails.hostel.name,
+              price: roomDetails.price
+            };
+          }
         }
       }
       

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore"
+import { getApplicationSettings, updateApplicationSettings } from "@/data/appwrite-settings-data"
 import { UserIcon as Male, UserIcon as Female, CheckCircle, SettingsIcon, CalendarIcon } from 'lucide-react'
 import { toast } from "react-toastify"
 
@@ -20,24 +20,19 @@ const Settings = () => {
   const [loading, setLoading] = useState<boolean>(true)
   const [saving, setSaving] = useState<boolean>(false)
 
-  const db = getFirestore()
-  const settingsDocRef = doc(db, "Settings", "ApplicationLimits")
-
   useEffect(() => {
     const fetchLimits = async () => {
       try {
-        const docSnapshot = await getDoc(settingsDocRef)
-        if (docSnapshot.exists()) {
-          const data = docSnapshot.data()
-          setBoyLimit(data.boyLimit || 0)
-          setGirlLimit(data.girlLimit || 0)
-          setAutoAcceptBoysLimit(data.autoAcceptBoysLimit || 0)
-          setAutoAcceptGirlsLimit(data.autoAcceptGirlsLimit || 0)
-          setStartDateTime(data.startDateTime || "")
-          setEndDateTime(data.endDateTime || "")
-        }
+        const settings = await getApplicationSettings()
+        setBoyLimit(settings.boyLimit || 0)
+        setGirlLimit(settings.girlLimit || 0)
+        setAutoAcceptBoysLimit(settings.autoAcceptBoysLimit || 0)
+        setAutoAcceptGirlsLimit(settings.autoAcceptGirlsLimit || 0)
+        setStartDateTime(settings.startDateTime || "")
+        setEndDateTime(settings.endDateTime || "")
       } catch (error) {
         console.error("Error fetching settings:", error)
+        toast.error("Failed to load settings")
       } finally {
         setLoading(false)
       }
@@ -65,7 +60,7 @@ const Settings = () => {
 
     setSaving(true)
     try {
-      await setDoc(settingsDocRef, {
+      await updateApplicationSettings({
         boyLimit,
         girlLimit,
         autoAcceptBoysLimit,
