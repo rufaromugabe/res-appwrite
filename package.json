@@ -2,12 +2,15 @@
   "name": "studentaffairs",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
-  "scripts": {
+  "type": "module",  "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "create-collections": "node --experimental-modules scripts/create-appwrite-collections.js",
+    "fix-permissions": "node --experimental-modules scripts/update-collection-permissions.js",
+    "inspect-db": "node --experimental-modules scripts/inspect-database.js",
+    "fix-attributes": "node --experimental-modules scripts/fix-collection-attributes.js"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

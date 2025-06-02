@@ -1,4 +1,4 @@
-import { Client, Account, Databases, Storage, Functions, Query, Permission, Role, ID } from 'appwrite';
+import { Client, Account, Databases, Storage, Functions, Teams, Query, Permission, Role, ID } from 'appwrite';
 
 const client = new Client();
 
@@ -11,6 +11,7 @@ export const account = new Account(client);
 export const databases = new Databases(client);
 export const storage = new Storage(client);
 export const functions = new Functions(client);
+export const teams = new Teams(client);
 
 // Database and Collection IDs (you'll need to create these in Appwrite console)
 export const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'res-app-db';

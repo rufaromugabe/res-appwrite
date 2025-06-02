@@ -1,17 +1,40 @@
 # Appwrite Permissions Documentation
 
-This document outlines how Firebase security rules have been translated to Appwrite permissions in the residence application system.
+This document outlines how permissions are implemented in the Appwrite-based residence application system.
 
 ## Overview
 
 Appwrite uses a different permission model than Firebase. Instead of server-side rules, Appwrite uses document-level permissions that are set when creating or updating documents.
 
+## Important Update: Using Teams and Roles Correctly
+
+### Correct Role Usage
+As of June 2025, we've fixed issues with role specifications. Appwrite requires specific formats:
+
+- `Role.any()` - Anyone, authenticated or not
+- `Role.users("verified")` - Any authenticated user with a verified email
+- `Role.users("unverified")` - Any authenticated user with an unverified email
+- `Role.team("<team-id>")` - Members of a specific team
+- `Role.user("<user-id>")` - A specific user by ID
+
+### Admin Access via Teams
+For admin functionality, we now use a team-based approach:
+- An "Admin" team is created automatically by the setup script
+- Users must be manually added to this team through the Appwrite Console
+- The application checks for Admin team membership to grant admin privileges
+
+### Running the Permissions Fix
+To update all collection permissions correctly:
+```bash
+npm run fix-permissions
+```
+
 ## Permission Structure
 
 ### Roles Used
 - `user:{userId}` - Individual user access
-- `team:admins` - Admin team access
-- `team:students` - General student team access
+- `team:admin` - Admin team access 
+- `users:verified` - Any verified user
 - `any` - Public access (used sparingly)
 
 ### Permission Types
@@ -22,8 +45,7 @@ Appwrite uses a different permission model than Firebase. Instead of server-side
 ## Collection Permissions
 
 ### 1. USERS Collection
-**Firebase Rule**: Users can read/update their own profile, admins can read/update/delete any profile
-**Appwrite Implementation**:
+**Old Implementation**:
 ```javascript
 // When creating user document
 permissions: [
@@ -33,6 +55,20 @@ permissions: [
   Permission.write(Role.team('admins')),
   Permission.delete(Role.team('admins'))
 ]
+```
+
+**Fixed Implementation**:
+```javascript
+// Collection level permissions
+permissions: [
+  Permission.read(Role.any()), // Anyone can read the users collection
+  Permission.write(Role.users("verified")), // Any verified user can create documents
+  Permission.update(Role.users("verified")), // Any verified user can update
+  Permission.delete(Role.team("admin")) // Only admin team members can delete
+]
+
+// Document level permissions (applied programmatically)
+// These are applied when creating/updating individual documents
 ```
 
 ### 2. STUDENTS Collection
@@ -64,8 +100,7 @@ permissions: [
 ```
 
 ### 4. HOSTELS Collection
-**Firebase Rule**: Anyone authenticated can read, only admins can modify
-**Appwrite Implementation**:
+**Old Implementation**:
 ```javascript
 // When creating hostel document
 permissions: [
@@ -75,6 +110,19 @@ permissions: [
   Permission.delete(Role.team('admins'))
 ]
 ```
+
+**Fixed Implementation**:
+```javascript
+// Collection level permissions
+permissions: [
+  Permission.read(Role.any()), // Anyone can read
+  Permission.write(Role.team("admin")), // Only admin team can write
+  Permission.update(Role.team("admin")), // Only admin team can update
+  Permission.delete(Role.team("admin")) // Only admin team can delete
+]
+```
+
+**Important Note**: Hostel initialization failures were due to incorrect permission settings. The user needs to be part of the "Admin" team to create or modify hostels.
 
 ### 5. ROOMS Collection
 **Firebase Rule**: Anyone authenticated can read, only admins can modify
@@ -99,6 +147,34 @@ permissions: [
 
 ### 7. ROOM_ALLOCATIONS Collection
 **Firebase Rule**: Students can read their own, admins can do anything
+
+## Troubleshooting Common Permission Issues
+
+### 1. Authentication Problems
+If you see errors like `Document with the requested ID could not be found`:
+- This happens when a user profile doesn't exist in the Users collection
+- Our system now automatically creates profiles for authenticated users
+- Check that the user ID matches between authentication and the database document
+
+### 2. Authorization Errors (`401 Unauthorized`)
+If you receive 401 errors when creating documents:
+- The user doesn't have write permission for the collection
+- For admin operations (like hostel initialization), ensure:
+  - The user is properly authenticated
+  - The user is a member of the Admin team
+  - The collection permissions are set correctly for team access
+
+### 3. Hostel Initialization Failures
+To fix the hostel initialization issues:
+1. Run `npm run fix-permissions` to update collection permissions
+2. Add the appropriate user(s) to the Admin team in Appwrite Console
+3. Attempt initialization again with an admin user
+
+## Adding Users to the Admin Team
+1. Go to Appwrite Console > Auth > Teams
+2. Select the "Admin" team
+3. Click "Add Membership"
+4. Enter the user's email and add them to the team
 **Appwrite Implementation**:
 ```javascript
 // When creating allocation document

@@ -1,4 +1,4 @@
-import { databases, DATABASE_ID, COLLECTION_IDS, Query, ID } from '@/lib/appwrite';
+import { databases, DATABASE_ID, COLLECTION_IDS, Query, ID, account } from '@/lib/appwrite';
 import { Hostel, Room, RoomAllocation, HostelSettings, Floor } from '@/types/hostel';
 import { Models } from 'appwrite';
 
@@ -70,6 +70,16 @@ export const fetchHostelById = async (hostelId: string): Promise<Hostel | null> 
  */
 export const createHostel = async (hostel: Omit<Hostel, 'id'>): Promise<string> => {
   try {
+    // Check if the user is authenticated first
+    try {
+      // This will throw an error if the user isn't authenticated
+      const currentSession = await account.get();
+      console.log('User authenticated with ID:', currentSession.$id);
+    } catch (authError) {
+      console.error('User not authenticated or session expired:', authError);
+      throw new Error('Authentication required to create hostel data');
+    }
+
     // Check for duplicate names
     const existingHostels = await fetchHostels();
     const duplicate = existingHostels.find(
@@ -81,6 +91,9 @@ export const createHostel = async (hostel: Omit<Hostel, 'id'>): Promise<string> 
       return duplicate.id;
     }
 
+    console.log(`Creating hostel ${hostel.name}...`);
+    
+    // Try to create the hostel with proper permissions
     const newHostel = await databases.createDocument(
       DATABASE_ID,
       COLLECTION_IDS.HOSTELS,
