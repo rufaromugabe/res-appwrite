@@ -4,11 +4,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Button } from "./ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
 import { Input } from "./ui/input"
-import { getAuth } from "firebase/auth"
-import { collection, doc, setDoc, getDoc, getFirestore } from "firebase/firestore"
-import { fetchAllApplications } from "@/data/firebase-data"
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { fetchAllApplications, updateApplicationStatus } from "@/data/appwrite-data"
 import { Separator } from "./ui/separator"
-import { updateApplicationStatus } from "@/data/firebase-data"
 import { programmes } from "@/data/programmes"
 import { toast } from "react-toastify"
 
@@ -27,6 +25,7 @@ const SkeletonLoader = ({ rows = 10, cols = 10 }) => {
 }
 
 const Applications = () => {
+  const { user } = useAuthContext();
   const [selectedPart, setSelectedPart] = useState<string>("all")
   const [selectedGender, setSelectedGender] = useState<string>("all")
   const [selectedStatus, setSelectedStatus] = useState<string>("all")
@@ -37,25 +36,20 @@ const Applications = () => {
   const [boyLimit, setBoyLimit] = useState<number>(0)
   const [girlLimit, setGirlLimit] = useState<number>(0)
 
-  const db = getFirestore()
-  const settingsDocRef = doc(db, "Settings", "ApplicationLimits")
-
   // Fetch application limits
   useEffect(() => {
-    const fetchLimits = async () => {
-      try {
-        const docSnapshot = await getDoc(settingsDocRef)
-        if (docSnapshot.exists()) {
-          const data = docSnapshot.data()
-          setBoyLimit(data.boyLimit || 0)
-          setGirlLimit(data.girlLimit || 0)
-        }
-      } catch (error) {
-        console.error("Error fetching settings:", error)
-      }
+    // TODO: Implement application limits with Appwrite settings
+  const fetchLimits = async () => {
+    try {
+      // Temporarily set default limits until Appwrite settings are implemented
+      setBoyLimit(100);
+      setGirlLimit(100);
+    } catch (error) {
+      console.error("Error fetching settings:", error);
     }
+  };
 
-    fetchLimits()
+  fetchLimits();
   }, [])
 
   useEffect(() => {
@@ -74,9 +68,6 @@ const Applications = () => {
   }, [])
 
   const handleStatusChange = async (regNumber: string, newStatus: "Accepted" | "Archived" | "Pending") => {
-    const activityLogsCollectionRef = collection(db, "ActivityLogs")
-    const adminEmail = getAuth().currentUser?.email || "Unknown Admin"
-
     try {
       const application = applications.find((app) => app.regNumber === regNumber)
 
@@ -98,17 +89,10 @@ const Applications = () => {
       setApplications((prevApps) =>
         prevApps.map((app) => (app.regNumber === regNumber ? { ...app, status: newStatus } : app)),
       )
-toast.success(`Application status changed successfully.`)
-      await setDoc(doc(activityLogsCollectionRef), {
-        adminEmail,
-        activity: `Changed status of application`,
-        regNumber,
-        oldStatus,
-        newStatus,
-        timestamp: new Date().toISOString(),
-      })
-
-      console.log("Status change logged successfully.")
+      toast.success(`Application status changed successfully.`)
+      
+      // TODO: Implement activity logging with Appwrite
+      console.log(`Status change: ${regNumber} from ${oldStatus} to ${newStatus} by ${user?.email || "Unknown Admin"}`)
     } catch (error) {
       console.error("Error updating application status:", error)
     }

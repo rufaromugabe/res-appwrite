@@ -4,17 +4,8 @@ import { useEffect, useState } from "react";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { toast } from "react-toastify";
-import {
-  doc,
-  getDoc,
-  setDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { getAuth } from "firebase/auth";
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { getStudentByUserId, updateStudentProfile, createOrUpdateStudentProfile } from "@/data/appwrite-student-data";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -102,6 +93,7 @@ type FormValues = z.infer<typeof StudentProfileSchema>;
 // Onboarding functionality moved inline to main component
 
 const StudentProfileForm: React.FC<{}> = () => {
+  const { user } = useAuthContext();
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);  const [needsOnboarding, setNeedsOnboarding] = useState(false);
@@ -130,39 +122,37 @@ const StudentProfileForm: React.FC<{}> = () => {
     const fetchProfile = async () => {
       setIsLoading(true);
       try {
-        const auth = getAuth();
-        const user = auth.currentUser;
-
         if (user) {
           const emailDomain = user.email?.split("@")[1] || "";
           let regNumber = "";
 
           setAuthDetails({
-            userName: user.displayName || "",
+            userName: user.name || "",
             userEmail: user.email || "",
             regNumber,
-          });          if (emailDomain === "hit.ac.zw") {
+          });
+
+          if (emailDomain === "hit.ac.zw") {
             // For hit.ac.zw domain users
             regNumber = user.email?.split("@")[0] || "";
             setAuthDetails((prev) => ({ ...prev, regNumber }));
 
-            const userDoc = doc(db, "students", regNumber);
-            const docSnap = await getDoc(userDoc);
+            // Try to get student profile by user ID
+            const studentProfile = await getStudentByUserId(user.$id);
 
-            if (docSnap.exists()) {
-              const data = docSnap.data();
+            if (studentProfile) {
               form.reset({
-                name: data.name || user.displayName || "",
-                phone: data.phone || "",
-                regNumber: data.regNumber || regNumber,
-                gender: data.gender,
-                part: data.part,
-                programme: data.programme || "",
+                name: studentProfile.name || user.name || "",
+                phone: studentProfile.phone || "",
+                regNumber: studentProfile.regNumber || regNumber,
+                gender: studentProfile.gender,
+                part: studentProfile.part?.toString() as "1" | "2" | "3" | "4" | "5",
+                programme: studentProfile.programme || "",
               });
             } else {
               // No profile exists, enable edit mode and prefill available data
               form.reset({
-                name: user.displayName || "",
+                name: user.name || "",
                 phone: "",
                 regNumber: regNumber,
                 gender: "Male",
@@ -172,28 +162,26 @@ const StudentProfileForm: React.FC<{}> = () => {
               setIsEditing(true);
             }
           } else if (emailDomain === "gmail.com" && user.email) {
-            // For gmail.com users, first check if they exist in Firebase by email
-            const usersRef = collection(db, "students");
-            const q = query(usersRef, where("email", "==", user.email));
-            const querySnapshot = await getDocs(q);
+            // For gmail.com users, try to get existing student profile
+            const studentProfile = await getStudentByUserId(user.$id);
 
-            if (!querySnapshot.empty) {
+            if (studentProfile) {
               // User exists in database, populate form with their data
-              const userData = querySnapshot.docs[0].data();
               form.reset({
-                name: userData.name || user.displayName || "",
-                phone: userData.phone || "",
-                regNumber: userData.regNumber || "",
-                gender: userData.gender,
-                part: userData.part,
-                programme: userData.programme || "",
+                name: studentProfile.name || user.name || "",
+                phone: studentProfile.phone || "",
+                regNumber: studentProfile.regNumber || "",
+                gender: studentProfile.gender,
+                part: studentProfile.part?.toString() as "1" | "2" | "3" | "4" | "5",
+                programme: studentProfile.programme || "",
               });
 
               setAuthDetails((prev) => ({
                 ...prev,
-                userName: userData.name || user.displayName || "",
-                regNumber: userData.regNumber || "",
-              }));            } else {
+                userName: studentProfile.name || user.name || "",
+                regNumber: studentProfile.regNumber || "",
+              }));
+            } else {
               // User doesn't exist, show onboarding inline
               setNeedsOnboarding(true);
             }
@@ -208,7 +196,7 @@ const StudentProfileForm: React.FC<{}> = () => {
     };
 
     fetchProfile();
-    }, [form]);
+  }, [form, user]);
   const handleRegNumberSubmit = async () => {
     setIsSearching(true);
     setOnboardingError("");
@@ -261,15 +249,28 @@ const StudentProfileForm: React.FC<{}> = () => {
 
   const onSubmit = async (data: FormValues) => {
     try {
-      const userDoc = doc(db, "students", data.regNumber);
-      await setDoc(
-        userDoc,
-        {
-          ...data,
-          email: authDetails.userEmail,
-        },
-        { merge: true }
-      );
+      if (!user) {
+        toast.error("User not authenticated");
+        return;
+      }
+
+      // Check if student profile exists
+      const existingProfile = await getStudentByUserId(user.$id);
+      
+      const profileData = {
+        ...data,
+        part: parseInt(data.part), // Convert string to number for Appwrite
+        email: authDetails.userEmail,
+        userId: user.$id,
+      };
+
+      if (existingProfile && existingProfile.$id) {
+        // Update existing profile
+        await updateStudentProfile(existingProfile.$id, profileData);
+      } else {
+        // Create new profile using createOrUpdateStudentProfile
+        await createOrUpdateStudentProfile(profileData);
+      }
 
       // Update authDetails with the saved name
       setAuthDetails((prev) => ({

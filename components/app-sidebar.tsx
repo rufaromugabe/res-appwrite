@@ -31,47 +31,36 @@ import {
 
 import Image from "next/image";
 import Logo from "@/public/hit_logo.png";
-import { useAuth, } from "@/hooks/useAuth"; 
+import { useAuthContext } from "@/hooks/useAuthContext"; 
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { title } from "process";
 
 export function AppSidebar() {
-  const { user, role, loading, signOut: signOutUser } = useAuth();
+  const { user, role, loading, signOut } = useAuthContext();
   const router = useRouter();
   const pathname = usePathname();
-  const [userRole, setUserRole] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!loading) {
-      if (!user) {
-        router.push("/login");
-      } else {
-        setUserRole(role);
-      }
-    }
-  }, [user, role, loading, router]);
 
   const handleLogout = async () => {
     try {
-      await signOutUser(); 
-      router.push("/login"); 
+      await signOut();
     } catch (error) {
       console.error("Logout failed:", error);
     }
   };
-
   const navigationItems = React.useMemo(() => {
-    if (!userRole) return [];
+    if (!role) return [];
 
-    const items = [];    if (userRole === "user") {
+    const items = [];
+
+    if (role === "user") {
       items.push(
         { title: "Profile", icon: UserRound, href: "/student/profile" },
         { title: "Application", icon: SquareArrowOutUpRightIcon, href: "/student/application" },
         { title: "Room Selection", icon: Home, href: "/student/room-selection" },
         { title: "Payments", icon: DollarSign, href: "/student/payments" }
       );
-    } else if (userRole === "admin") {
+    } else if (role === "admin") {
       items.push(
         { title: "Accounts", icon: Users, href: "/admin/accounts" },
         { title: "Applications", icon: Inbox, href: "/admin/applications" },
@@ -88,9 +77,9 @@ export function AppSidebar() {
     // items.push({ title: "Published", icon: CloudUpload, href: "/accepted-students" });
 
     return items;
-  }, [userRole]);
+  }, [role]);
 
-  if (loading || !userRole) {
+  if (loading || !role) {
     return null;
   }
   return (

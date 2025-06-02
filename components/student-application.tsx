@@ -20,11 +20,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from 'react-toastify';
-import { doc, getDoc, setDoc, deleteDoc, collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { getAuth } from "firebase/auth";
-import { StudentProfile } from "./student-profile";
-import { fetchHostels, fetchStudentAllocations, getRoomDetailsFromAllocation } from "@/data/hostel-data";
+import { fetchHostels, fetchAllocationByStudent } from "@/data/appwrite-hostel-data";
+import { createApplication, getApplicationByRegNumber, deleteApplication } from "@/data/appwrite-data";
+import { getStudentByUserId, StudentProfile } from "@/data/appwrite-student-data";
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { Hostel, RoomAllocation } from "@/types/hostel";
 
 // Define Zod schema for validation
@@ -42,13 +41,13 @@ interface ApplicationData {
   email: string;
   regNumber: string;
   submittedAt: string;
-  status: "Pending" | "Accepted";
+  status: "Pending" | "Accepted" | "Archived";
 }
 
 // Function to check if applications are restricted
 const isApplicationRestricted = (regNumber: string): boolean => {
   const currentDate = new Date();
-  const restrictionEndDate = new Date('2025-06-04T08:00:00'); // June 4, 2025 at 08:00
+  const restrictionEndDate = new Date('2025-06-01T08:00:00'); // June 4, 2025 at 08:00
   
   // If current date is before restriction end date, only allow H250XXXX registration numbers
   if (currentDate < restrictionEndDate) {
@@ -59,6 +58,7 @@ const isApplicationRestricted = (regNumber: string): boolean => {
 };
 
 const StudentApplicationForm: React.FC = () => {
+  const { user } = useAuthContext();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true); // State to manage loading
   const [application, setApplication] = useState<ApplicationData | null>(null);
@@ -75,90 +75,67 @@ const StudentApplicationForm: React.FC = () => {
   });  // Fetch authenticated user's profile and application
   useEffect(() => {
     const fetchProfileAndApplication = async () => {
-      const auth = getAuth();
-      const user = auth.currentUser;
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
 
-      if (user) {
-        const emailDomain = user.email?.split("@")[1] || "";
-        let regNumber = "";
-        let userDoc;
-        let applicationDoc;
-
-        try {
-          if (emailDomain === "hit.ac.zw") {
-            // For hit.ac.zw domain users
-            regNumber = user.email?.split("@")[0] || "";
-            userDoc = doc(db, "students", regNumber);
-            applicationDoc = doc(db, "applications", regNumber);
-          } else if (emailDomain === "gmail.com" && user.email) {
-            // For gmail.com users, find them by email first
-            const usersRef = collection(db, "students");
-            const q = query(usersRef, where("email", "==", user.email));
-            const querySnapshot = await getDocs(q);
-
-            if (!querySnapshot.empty) {
-              // User exists in database
-              const userData = querySnapshot.docs[0].data();
-              regNumber = userData.regNumber || "";
-              userDoc = doc(db, "students", regNumber);
-              applicationDoc = doc(db, "applications", regNumber);
-            } else {
-              // User doesn't exist in database
-              console.log("User not found in database");
-              setIsLoading(false);
-              return;
-            }
-          } else {
-            // Unsupported email domain
-            console.log("Unsupported email domain");
-            setIsLoading(false);
-            return;
-          }
-
-          // Fetch profile
-          const profileSnap = await getDoc(userDoc);
-          if (profileSnap.exists()) {
-            setProfile(profileSnap.data() as StudentProfile);
-          }
-
-          // Fetch application
-          const applicationSnap = await getDoc(applicationDoc);
-          if (applicationSnap.exists()) {
-            setApplication(applicationSnap.data() as ApplicationData);
-          }
-
-          // Fetch hostels
-          const hostelData = await fetchHostels();
-          setHostels(hostelData);
-
-          // Check for room allocation
-          if (profileSnap.exists() && regNumber) {
-            const allocations = await fetchStudentAllocations(regNumber);
-            if (allocations.length > 0) {
-              const allocation = allocations[0];
-              setRoomAllocation(allocation);
-              // Fetch room details
-              const details = await getRoomDetailsFromAllocation(allocation);
-              if (details) {
-                setRoomDetails({
-                  roomNumber: details.room.number,
-                  hostelName: details.hostel.name,
-                  floorName: details.room.floorName,
-                  price: details.price
-                });
-              }
-            }
-          }
-        } catch (error) {
-          console.error("Error fetching data:", error);
-        } finally {
-          setIsLoading(false); // Loading is complete
+      try {
+        // Get student profile using Appwrite user ID
+        const student = await getStudentByUserId(user.$id);
+        
+        if (!student) {
+          console.log("Student profile not found");
+          setIsLoading(false);
+          return;
         }
+
+        setProfile(student);
+
+        // Fetch application by registration number
+        const applicationData = await getApplicationByRegNumber(student.regNumber);
+        if (applicationData) {
+          setApplication(applicationData);
+        }
+
+        // Fetch hostels
+        const hostelData = await fetchHostels();
+        setHostels(hostelData);
+
+        // Check for room allocation
+        const allocation = await fetchAllocationByStudent(student.regNumber);
+        if (allocation) {
+          setRoomAllocation(allocation);
+          // Fetch room details from hostel data
+          const hostel = hostelData.find(h => h.id === allocation.hostelId);
+          if (hostel) {
+            let roomDetails = null;
+            hostel.floors.forEach(floor => {
+              floor.rooms.forEach(room => {
+                if (room.id === allocation.roomId) {
+                  roomDetails = {
+                    roomNumber: room.number,
+                    hostelName: hostel.name,
+                    floorName: floor.name,
+                    price: hostel.pricePerSemester
+                  };
+                }
+              });
+            });
+            if (roomDetails) {
+              setRoomDetails(roomDetails);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setIsLoading(false); // Loading is complete
       }
     };
 
     fetchProfileAndApplication();
-  }, []);
+  }, [user]);
 
   const onSubmit = async (data: FormValues) => {
     if (!profile) {
@@ -169,71 +146,29 @@ const StudentApplicationForm: React.FC = () => {
     const { regNumber, name, email } = profile;
   
     setIsSubmitting(true);
-  
+
     try {
-      const applicationDoc = doc(db, "applications", regNumber);
-      const applicationsCollection = collection(db, "applications");
-  
-      // Fetch settings from Firestore
-      const settingsDoc = doc(db, "Settings", "ApplicationLimits");
-      const settingsSnap = await getDoc(settingsDoc);
-  
-      if (!settingsSnap.exists()) {
-        throw new Error("Settings not found in Firestore.");
-      }
-  
-      const settings = settingsSnap.data();
-      const autoAcceptBoysLimit = settings.autoAcceptBoysLimit || 0;
-      const autoAcceptGirlsLimit = settings.autoAcceptGirlsLimit || 0;
-  
-      // Fetch the count of accepted applications for boys and girls
-      const boysQuery = query(
-        applicationsCollection,
-        where("status", "==", "Accepted"),
-        where("gender", "==", "Male")
-      );
-      const girlsQuery = query(
-        applicationsCollection,
-        where("status", "==", "Accepted"),
-        where("gender", "==", "Female")
-      );
-  
-      const [boysSnap, girlsSnap] = await Promise.all([
-        getDocs(boysQuery),
-        getDocs(girlsQuery),
-      ]);
-  
-      const boysCount = boysSnap.size;
-      const girlsCount = girlsSnap.size;
-  
-      // Determine status based on auto-accept limits
-      let status: "Pending" | "Pending" = "Pending";
-      if (
-        (profile.gender === "Male" && boysCount < autoAcceptBoysLimit) ||
-        (profile.gender === "Female" && girlsCount < autoAcceptGirlsLimit)
-      ) {
-        status = "Pending";
-      }
-  
-      // Save the application with calculated status
-      await setDoc(applicationDoc, {
-        ...data,
+      // Submit application using Appwrite
+      const applicationData = {
+        preferredHostel: data.preferredHostel,
         name,
         email,
         regNumber,
         submittedAt: new Date().toISOString(),
-        status,
-      });
-  
-      setApplication({
-        ...data,
-        name,
-        email,
-        regNumber,
-        submittedAt: new Date().toISOString(),
-        status,
-      });
-  
+        status: "Pending" as const, // Applications start as pending
+        gender: profile.gender, // Include gender for potential auto-accept logic
+        programme: profile.programme,
+        part: profile.part,
+        phone: profile.phone || '',
+        paymentStatus: 'Not Paid',
+        reference: '',
+        userId: user?.$id,
+      };
+
+      await createApplication(applicationData);
+
+      setApplication(applicationData);
+
       toast.success(`Application submitted successfully! You can now proceed to room selection.`);
       
       // Redirect to room selection after successful application
@@ -252,7 +187,7 @@ const StudentApplicationForm: React.FC = () => {
   
   
 
-  const deleteApplication = async () => {
+  const handleDeleteApplication = async () => {
     if (!profile) {
       toast.error("Profile data is missing. Please reload the page.");
       return;
@@ -261,9 +196,15 @@ const StudentApplicationForm: React.FC = () => {
     const { regNumber } = profile;
 
     try {
-      const applicationDoc = doc(db, "applications", regNumber);
-      await deleteDoc(applicationDoc);
+      // First get the application by reg number to get the ID
+      const existingApplication = await getApplicationByRegNumber(regNumber);
+      if (!existingApplication || !existingApplication.$id) {
+        toast.error("Application not found.");
+        return;
+      }
 
+      // Delete the application using its ID
+      await deleteApplication(existingApplication.$id);
       setApplication(null); // Clear application state
       toast.success("Application deleted successfully.");
     } catch (error) {
@@ -273,6 +214,7 @@ const StudentApplicationForm: React.FC = () => {
       );
     }
   };
+
   // Skeleton Loading UI
   if (isLoading) {
     return (
@@ -346,7 +288,7 @@ const StudentApplicationForm: React.FC = () => {
             </Button>
           </div>
         )}        <Button
-          onClick={deleteApplication}
+          onClick={handleDeleteApplication}
           className="w-full mt-6 text-lg py-6"
           variant="destructive"
         >

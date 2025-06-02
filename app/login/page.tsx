@@ -1,27 +1,58 @@
-'use client'
+'use client';
 
-import { useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
 import Image from 'next/image';
 import Logo from '@/public/hit_logo.png';
 import BackgroundImage from '@/public/acbackground.jpg';
 import { motion } from 'framer-motion';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { PublicGuard } from '@/components/auth-guard';
+import { LoadingSpinner } from '@/components/loading-spinner';
 
-export default function LoginPage() {
-  const { signIn } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+function LoginContent() {
+  const { signIn, handleOAuthCallback, loading } = useAuthContext();
+  const searchParams = useSearchParams();
+  const callbackProcessedRef = useRef(false);
+
+  // Handle OAuth callback
+  useEffect(() => {
+    const success = searchParams.get('success');
+    const error = searchParams.get('error');
+
+    if ((success === 'true' || error === 'true') && !callbackProcessedRef.current) {
+      callbackProcessedRef.current = true;
+      
+      if (success === 'true') {
+        handleOAuthCallback();
+      } else if (error === 'true') {
+        toast.error('Authentication failed. Please try again.');
+        window.history.replaceState({}, '', '/login');
+      }
+    }
+  }, [searchParams, handleOAuthCallback]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await signIn();
-     
     } catch (error) {
-      toast.error('Failed to log in. Please try again.');
+      toast.error('Failed to initiate sign in. Please try again.');
     }
   };
+
+  // Show loading spinner during OAuth callback processing
+  if (loading && (searchParams.get('success') === 'true' || searchParams.get('error') === 'true')) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <LoadingSpinner />
+          <p className="mt-4 text-gray-600">Processing authentication...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen">
@@ -35,8 +66,8 @@ export default function LoginPage() {
         <Image
           src={BackgroundImage}
           alt="Background"
-          layout="fill"
-          objectFit="cover"
+          fill
+          style={{ objectFit: 'cover' }}
           className="absolute inset-0 z-0"
         />
         <motion.div 
@@ -64,7 +95,7 @@ export default function LoginPage() {
         </motion.div>
       </motion.div>
 
-      {/* Right side with login form and animated background */}
+      {/* Right side with login form */}
       <motion.div 
         className="w-full lg:w-1/2 flex items-center justify-center p-8 relative overflow-hidden"
         initial={{ opacity: 0, x: 50 }}
@@ -107,6 +138,7 @@ export default function LoginPage() {
                 Please sign in with your HIT account
               </p>
             </motion.div>
+            
             <motion.form 
               onSubmit={handleSubmit} 
               className="space-y-6"
@@ -116,16 +148,25 @@ export default function LoginPage() {
             >
               <motion.button
                 type="submit"
-                className="w-full py-2 px-4 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                disabled={loading}
+                className="w-full py-2 px-4 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                whileHover={{ scale: loading ? 1 : 1.05 }}
+                whileTap={{ scale: loading ? 1 : 0.95 }}
               >
-                Sign in with Google
+                {loading ? 'Signing in...' : 'Sign in with Google'}
               </motion.button>
             </motion.form>
           </motion.div>
         </div>
       </motion.div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <PublicGuard>
+      <LoginContent />
+    </PublicGuard>
   );
 }

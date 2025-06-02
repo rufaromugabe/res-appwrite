@@ -1,9 +1,10 @@
-'use client'
+'use client';
 
-import React from 'react';
+import React, { createContext, useContext } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { AuthContextType } from '@/types/auth';
 
-export const AuthContext = React.createContext<ReturnType<typeof useAuth> | null>(null);
+const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
@@ -13,4 +14,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
+}
+
+export function useAuthContext(): AuthContextType {
+  const context = useContext(AuthContext);
+  
+  if (!context) {
+    throw new Error('useAuthContext must be used within an AuthProvider');
+  }
+  
+  return context;
 }

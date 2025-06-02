@@ -12,7 +12,7 @@ import {
 } from "./ui/table";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { fetchAllApplications } from "@/data/firebase-data";
+import { fetchAllApplications } from "@/data/appwrite-data";
 import { generateExcelFile } from "@/utils/generate_xl"; 
 import { toast } from "react-toastify";
 

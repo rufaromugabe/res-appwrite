@@ -2,50 +2,53 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { getFirestore, doc, getDoc } from "firebase/firestore"
+import { getApplicationCountdown } from "@/data/appwrite-settings-data"
 import { toast } from "react-toastify"
 import { Clock } from "lucide-react"
 
 const CountdownPage = () => {
-  const [startTime, setStartTime] = useState<Date | null>(null)
+  const [status, setStatus] = useState<'upcoming' | 'open' | 'closed'>('upcoming')
+  const [targetDate, setTargetDate] = useState<Date | null>(null)
   const [countdown, setCountdown] = useState<string>("Loading...")
   const [loading, setLoading] = useState<boolean>(true)
 
-  const db = getFirestore()
-  const settingsDocRef = doc(db, "Settings", "ApplicationLimits")
-
   useEffect(() => {
-    const fetchStartTime = async () => {
+    const fetchCountdownData = async () => {
       try {
-        const docSnapshot = await getDoc(settingsDocRef)
-        if (docSnapshot.exists()) {
-          const data = docSnapshot.data()
-          const fetchedStartTime = data.startDateTime
-          if (fetchedStartTime) {
-            setStartTime(new Date(fetchedStartTime))
-          } else {
-            toast.error("Start time not found in settings.")
-          }
+        const countdownData = await getApplicationCountdown()
+        setStatus(countdownData.status)
+        setTargetDate(countdownData.targetDate)
+        setCountdown(countdownData.timeRemaining)
+        
+        if (countdownData.status === 'closed' && !countdownData.targetDate) {
+          toast.error("Application period not configured.")
         }
       } catch (error) {
-        console.error("Error fetching start time:", error)
-        toast.error("Failed to fetch start time.")
+        console.error("Error fetching countdown data:", error)
+        toast.error("Failed to fetch application status.")
+        setCountdown("Error loading countdown")
       } finally {
         setLoading(false)
       }
     }
 
-    fetchStartTime()
+    fetchCountdownData()
   }, [])
 
   useEffect(() => {
-    if (startTime) {
+    if (targetDate && status !== 'closed') {
       const interval = setInterval(() => {
         const now = new Date()
-        const diff = startTime.getTime() - now.getTime()
+        const diff = targetDate.getTime() - now.getTime()
 
         if (diff <= 0) {
-          setCountdown("Applications are now open!")
+          if (status === 'upcoming') {
+            setCountdown("Applications are now open!")
+            setStatus('open')
+          } else if (status === 'open') {
+            setCountdown("Application period has ended")
+            setStatus('closed')
+          }
           clearInterval(interval)
           return
         }
@@ -60,7 +63,7 @@ const CountdownPage = () => {
 
       return () => clearInterval(interval)
     }
-  }, [startTime])
+  }, [targetDate, status])
 
   if (loading) {
     return (
@@ -86,21 +89,29 @@ const CountdownPage = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="text-center py-8 space-y-4">
-          {startTime ? (
+          {targetDate ? (
             <>
               <p className="text-lg">
-                Applications will start on:{" "}
-                <span className="font-bold">
-                  {startTime.toLocaleString("en-US", {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  })}
-                </span>
+                {status === 'upcoming' && "Applications will start on: "}
+                {status === 'open' && "Applications will close on: "}
+                {status === 'closed' && "Application period has ended"}
+                {targetDate && (
+                  <span className="font-bold">
+                    {targetDate.toLocaleString("en-US", {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    })}
+                  </span>
+                )}
               </p>
               <p className="text-4xl font-bold">{countdown}</p>
             </>
           ) : (
-            <p className="text-lg">Start time is not set in the system.</p>
+            <p className="text-lg">
+              {status === 'closed' 
+                ? "Application period is not configured in the system." 
+                : countdown}
+            </p>
           )}
         </CardContent>
       </Card>
