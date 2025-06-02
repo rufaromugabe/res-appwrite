@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
 import Image from 'next/image';
 import Logo from '@/public/hit_logo.png';
@@ -9,9 +10,35 @@ import BackgroundImage from '@/public/acbackground.jpg';
 import { motion } from 'framer-motion';
 
 export default function LoginPage() {
-  const { signIn } = useAuthContext();
+  const { signIn, handleOAuthCallback, loading } = useAuthContext();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isProcessingCallback, setIsProcessingCallback] = useState(false);
+  const callbackProcessedRef = useRef(false);
+  const searchParams = useSearchParams();  // Handle OAuth callback - check once on mount
+  useEffect(() => {
+    const success = searchParams.get('success');
+    const error = searchParams.get('error');
+
+    // Only process if we have URL parameters and haven't processed yet
+    if ((success === 'true' || error === 'true') && !callbackProcessedRef.current) {
+      callbackProcessedRef.current = true;
+      setIsProcessingCallback(true);
+      
+      if (success === 'true') {
+        console.log('OAuth success detected, handling callback...');
+        handleOAuthCallback().finally(() => {
+          setIsProcessingCallback(false);
+        });
+      } else if (error === 'true') {
+        console.error('OAuth error detected');
+        toast.error('Authentication failed. Please try again.');
+        // Clear URL parameters on error
+        window.history.replaceState({}, '', '/login');
+        setIsProcessingCallback(false);
+      }
+    }
+  }, [searchParams, handleOAuthCallback]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,6 +49,17 @@ export default function LoginPage() {
       toast.error('Failed to log in. Please try again.');
     }
   };
+  // Show loading spinner during OAuth callback processing
+  if ((loading || isProcessingCallback) && (searchParams.get('success') === 'true' || searchParams.get('error') === 'true')) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Processing authentication...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen">

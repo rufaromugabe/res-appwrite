@@ -167,6 +167,10 @@ export function useAppwriteAuth() {
   };  const handleOAuthCallback = async () => {
     try {
       setLoading(true);
+      
+      // Clear URL parameters immediately to prevent re-triggering
+      window.history.replaceState({}, '', '/login');
+      
       const currentUser = await account.get();
       setUser(currentUser);
 
@@ -176,6 +180,7 @@ export function useAppwriteAuth() {
         try {
           // Fetch user profile (will create if doesn't exist)
           userProfile = await fetchUserProfile(currentUser.$id);
+          // Only show success toast once the profile is loaded
           toast.success('Successfully logged in!');
         } catch (error) {
           console.error('Error getting user profile:', error);
@@ -186,10 +191,7 @@ export function useAppwriteAuth() {
         // Redirect based on role from the actual profile data
         console.log('Redirecting user with role:', userProfile.role);
         
-        // Clear the URL parameters first
-        window.history.replaceState({}, '', '/login');
-        
-        // Then redirect based on role
+        // Redirect based on role
         if (userProfile.role === 'admin') {
           router.replace('/admin');
         } else {
