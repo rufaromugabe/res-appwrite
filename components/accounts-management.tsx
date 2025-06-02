@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useAppwriteAuth } from "@/hooks/useAppwriteAuth";
+import { useAuthContext } from "@/hooks/useAuthContext";
 import { getAllUsers, updateUserRole, searchUsers, type UserData } from "@/data/appwrite-user-data";
 import { toast } from "react-toastify";
 import { Search } from "lucide-react";
@@ -11,7 +11,7 @@ import { Input } from "./ui/input";
 const PAGE_SIZE = 20;
 
 const AdminAccountManagement = () => {
-  const { user } = useAppwriteAuth();
+  const { user } = useAuthContext();
   const [users, setUsers] = useState<UserData[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);

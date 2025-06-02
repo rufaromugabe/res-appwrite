@@ -14,7 +14,7 @@ import {
 import { fetchAllocationByStudent } from "@/data/appwrite-hostel-data";
 import { addAdminPayment } from "@/data/appwrite-payment-data";
 import { updateApplicationPayment } from "@/data/appwrite-data";
-import { useAppwriteAuth } from "@/hooks/useAppwriteAuth";
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { Payment } from "@/types/hostel";
 import BankingDetails from "@/components/banking-details";
 
@@ -33,7 +33,7 @@ const PAYMENT_STATUSES = [
 ];
 
 const PaymentStatusModal = ({ isOpen, onClose, student, onUpdate }: PaymentStatusModalProps) => {
-  const { user } = useAppwriteAuth();
+  const { user } = useAuthContext();
   const [paymentStatus, setPaymentStatus] = useState("Not Paid");
   const [reference, setReference] = useState("");
   const [showAddPayment, setShowAddPayment] = useState(false);

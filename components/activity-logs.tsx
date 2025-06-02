@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Input } from "./ui/input";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { useAppwriteAuth } from "@/hooks/useAppwriteAuth";
+import { useAuthContext } from "@/hooks/useAuthContext";
 
 const Skeleton = ({ rows = 5, columns = 6 }) => (
   <div className="animate-pulse">
@@ -20,7 +20,7 @@ const Skeleton = ({ rows = 5, columns = 6 }) => (
 );
 
 const Logs = () => {
-  const { user } = useAppwriteAuth();
+  const { user } = useAuthContext();
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");

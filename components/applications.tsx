@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Button } from "./ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
 import { Input } from "./ui/input"
-import { useAppwriteAuth } from "@/hooks/useAppwriteAuth"
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { fetchAllApplications, updateApplicationStatus } from "@/data/appwrite-data"
 import { Separator } from "./ui/separator"
 import { programmes } from "@/data/programmes"
@@ -25,7 +25,7 @@ const SkeletonLoader = ({ rows = 10, cols = 10 }) => {
 }
 
 const Applications = () => {
-  const { user } = useAppwriteAuth();
+  const { user } = useAuthContext();
   const [selectedPart, setSelectedPart] = useState<string>("all")
   const [selectedGender, setSelectedGender] = useState<string>("all")
   const [selectedStatus, setSelectedStatus] = useState<string>("all")

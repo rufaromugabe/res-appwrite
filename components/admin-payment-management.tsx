@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAppwriteAuth } from '@/hooks/useAppwriteAuth';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { toast } from 'react-toastify';
 import { 
   CheckCircle, 
@@ -35,7 +35,7 @@ import { Payment, RoomAllocation } from '@/types/hostel';
 import BankingDetails from '@/components/banking-details';
 
 const AdminPaymentManagement: React.FC = () => {
-  const { user } = useAppwriteAuth();
+  const { user } = useAuthContext();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [pendingPayments, setPendingPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);

@@ -2,7 +2,7 @@
 
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
-import { useAppwriteAuth } from "@/hooks/useAppwriteAuth";
+import { useAuthContext } from "@/hooks/useAuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LoadingSpinner } from "@/components/loading-spinner";
@@ -10,7 +10,7 @@ import { AppDrawer } from "@/components/app-drawer";
 import { getApplicationSettings } from "@/data/appwrite-settings-data";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const { user, loading, role } = useAppwriteAuth();
+  const { user, loading, role } = useAuthContext();
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [applicationStartTime, setApplicationStartTime] = useState<Date | null>(null);

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { toast } from "react-toastify";
-import { useAppwriteAuth } from "@/hooks/useAppwriteAuth";
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { getStudentByUserId, updateStudentProfile, createOrUpdateStudentProfile } from "@/data/appwrite-student-data";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -93,7 +93,7 @@ type FormValues = z.infer<typeof StudentProfileSchema>;
 // Onboarding functionality moved inline to main component
 
 const StudentProfileForm: React.FC<{}> = () => {
-  const { user } = useAppwriteAuth();
+  const { user } = useAuthContext();
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);  const [needsOnboarding, setNeedsOnboarding] = useState(false);

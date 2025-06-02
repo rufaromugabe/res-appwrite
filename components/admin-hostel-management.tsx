@@ -48,11 +48,11 @@ import {
   removeOccupantFromRoom
 } from '@/data/appwrite-hostel-data';
 import { forceInitializeHostelData } from '@/utils/initialize-hostels';
-import { useAppwriteAuth } from '@/hooks/useAppwriteAuth';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 const AdminHostelManagement: React.FC = () => {
-  const { user } = useAppwriteAuth();
+  const { user } = useAuthContext();
   const [hostels, setHostels] = useState<Hostel[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedHostel, setSelectedHostel] = useState<Hostel | null>(null);

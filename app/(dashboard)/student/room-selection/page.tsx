@@ -4,14 +4,16 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import RoomSelection from '@/components/room-selection';
 import { StudentProfile } from '@/components/student-profile';
-import { useAppwriteAuth } from '@/hooks/useAppwriteAuth';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { getStudentByRegNumber, getStudentByUserId } from '@/data/appwrite-student-data';
 import { getApplicationByRegNumber } from '@/data/appwrite-data';
 import { toast } from 'react-toastify';
 import { LoadingSpinner } from '@/components/loading-spinner';
+import { AuthProvider } from "@/components/auth-provider";
+import { StudentGuard } from "@/components/auth-guard";
 
-const RoomSelectionPage: React.FC = () => {
-  const { user } = useAppwriteAuth();
+function RoomSelectionContent() {
+  const { user } = useAuthContext();
   const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [application, setApplication] = useState<any>(null);
@@ -181,8 +183,17 @@ const RoomSelectionPage: React.FC = () => {
         onRoomSelected={handleRoomSelected}
         studentProfile={studentProfile}
       />
-    </div>
+    </div>  );
+}
+
+function RoomSelectionPage() {
+  return (
+    <AuthProvider>
+      <StudentGuard>
+        <RoomSelectionContent />
+      </StudentGuard>
+    </AuthProvider>
   );
-};
+}
 
 export default RoomSelectionPage;

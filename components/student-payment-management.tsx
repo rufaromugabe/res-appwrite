@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useAppwriteAuth } from '@/hooks/useAppwriteAuth';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { toast } from 'react-toastify';
 import { Plus, Edit, Eye, AlertTriangle, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { 
@@ -45,7 +45,7 @@ const StudentPaymentManagement: React.FC<StudentPaymentManagementProps> = ({ stu
     notes: ''
   });
 
-  const { user } = useAppwriteAuth();
+  const { user } = useAuthContext();
 
   // Function to determine registration number based on email domain
   const determineRegNumber = async (): Promise<string> => {

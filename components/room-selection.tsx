@@ -25,7 +25,7 @@ import {
 import { Hostel, Room } from '@/types/hostel';
 import { fetchHostels, allocateRoom, fetchAllocationByStudent, fetchHostelSettings } from '@/data/appwrite-hostel-data';
 import { getStudentByUserId } from '@/data/appwrite-student-data';
-import { useAppwriteAuth } from '@/hooks/useAppwriteAuth';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { StudentProfile } from './student-profile';
 import StudentPaymentManagement from './student-payment-management';
 
@@ -35,7 +35,7 @@ interface RoomSelectionProps {
 }
 
 const RoomSelection: React.FC<RoomSelectionProps> = ({ onRoomSelected, studentProfile }) => {
-  const { user } = useAppwriteAuth();
+  const { user } = useAuthContext();
   const [hostels, setHostels] = useState<Hostel[]>([]);
   const [selectedHostel, setSelectedHostel] = useState<string>('');
   const [selectedFloor, setSelectedFloor] = useState<string>('all');

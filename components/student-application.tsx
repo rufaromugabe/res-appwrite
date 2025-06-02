@@ -23,7 +23,7 @@ import { toast } from 'react-toastify';
 import { fetchHostels, fetchAllocationByStudent } from "@/data/appwrite-hostel-data";
 import { createApplication, getApplicationByRegNumber, deleteApplication } from "@/data/appwrite-data";
 import { getStudentByUserId, StudentProfile } from "@/data/appwrite-student-data";
-import { useAppwriteAuth } from "@/hooks/useAppwriteAuth";
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { Hostel, RoomAllocation } from "@/types/hostel";
 
 // Define Zod schema for validation
@@ -58,7 +58,7 @@ const isApplicationRestricted = (regNumber: string): boolean => {
 };
 
 const StudentApplicationForm: React.FC = () => {
-  const { user } = useAppwriteAuth();
+  const { user } = useAuthContext();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true); // State to manage loading
   const [application, setApplication] = useState<ApplicationData | null>(null);

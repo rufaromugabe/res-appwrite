@@ -7,7 +7,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { fetchAllApplications } from "@/data/appwrite-data";
 import { fetchAllocationByStudent, getRoomDetailsFromAllocation } from "@/data/appwrite-hostel-data";
-import { useAppwriteAuth } from "@/hooks/useAppwriteAuth";
+import { useAuthContext } from "@/hooks/useAuthContext";
 import { Pie, Bar } from "react-chartjs-2";
 import { Chart as ChartJS, Title, Tooltip, Legend, ArcElement, CategoryScale, LinearScale, BarElement } from "chart.js";
 import { toast } from "react-toastify";
@@ -51,7 +51,7 @@ const StatisticsSkeleton = () => (
 
 
 const Accepted = () => {
-  const { user } = useAppwriteAuth();
+  const { user } = useAuthContext();
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
