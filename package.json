@@ -7,10 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "create-collections": "node --experimental-modules scripts/create-appwrite-collections.js",
-    "fix-permissions": "node --experimental-modules scripts/update-collection-permissions.js",
-    "inspect-db": "node --experimental-modules scripts/inspect-database.js",
-    "fix-attributes": "node --experimental-modules scripts/fix-collection-attributes.js"
+    "db:inspect": "node --experimental-modules scripts/complete-database-setup.js inspect",
+    "db:create": "node --experimental-modules scripts/complete-database-setup.js create",
+    "db:fix": "node --experimental-modules scripts/complete-database-setup.js fix",
+    "db:permissions": "node --experimental-modules scripts/complete-database-setup.js permissions",
+    "db:manager": "node --experimental-modules scripts/db-manager.js"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
