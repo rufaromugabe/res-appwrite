@@ -47,7 +47,7 @@ interface ApplicationData {
 // Function to check if applications are restricted
 const isApplicationRestricted = (regNumber: string): boolean => {
   const currentDate = new Date();
-  const restrictionEndDate = new Date('2025-06-04T08:00:00'); // June 4, 2025 at 08:00
+  const restrictionEndDate = new Date('2025-06-01T08:00:00'); // June 4, 2025 at 08:00
   
   // If current date is before restriction end date, only allow H250XXXX registration numbers
   if (currentDate < restrictionEndDate) {
