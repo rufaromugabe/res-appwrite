@@ -33,29 +33,20 @@ const collections = {
 };
 
 /**
- * Update collection permissions
+ * Update collection permissions - Simplified to use user role only
  */
 async function updateCollectionPermissions(collectionId, name) {
   try {
     console.log(`Updating permissions for ${name} collection...`);
     
-    // Define permissions based on collection type
+    // Simple permissions - all authenticated users can do everything
+    // Role-based restrictions will be handled in application logic
     let permissions = [
-      Permission.read(Role.any()), // Anyone can read
-      Permission.write(Role.users("verified")), // Verified users can write
-      Permission.update(Role.users("verified")), // Verified users can update
-      Permission.delete(Role.team("admin")) // Only admins can delete
+      Permission.read(Role.users()), // Any authenticated user can read
+      Permission.create(Role.users()), // Any authenticated user can create
+      Permission.update(Role.users()), // Any authenticated user can update
+      Permission.delete(Role.users()) // Any authenticated user can delete
     ];
-    
-    // Settings and Hostels collections should have more restrictive permissions
-    if (name === 'Settings' || name === 'Hostels') {
-      permissions = [
-        Permission.read(Role.any()), // Anyone can read
-        Permission.write(Role.team("admin")), // Only admins can write
-        Permission.update(Role.team("admin")), // Only admins can update
-        Permission.delete(Role.team("admin")) // Only admins can delete
-      ];
-    }
     
     await databases.updateCollection(
       DATABASE_ID,
@@ -73,35 +64,35 @@ async function updateCollectionPermissions(collectionId, name) {
 }
 
 /**
- * Fix permission for hostels collection to allow student initialization
+ * Simple permissions setup - No teams needed
  */
 async function temporarilyFixHostelsPermission() {
   try {
-    console.log('Temporarily updating hostels collection permissions to allow initialization...');
+    console.log('Updating hostels collection permissions...');
     
     // Get collection ID
     const { collections } = await databases.listCollections(DATABASE_ID);
-    const hostelsCollection = collections.find(c => c.$id === collections.HOSTELS || c.name.toLowerCase() === 'hostels');
+    const hostelsCollection = collections.find(c => c.$id === 'hostels' || c.name.toLowerCase() === 'hostels');
     
     if (!hostelsCollection) {
       console.error('Hostels collection not found');
       return false;
     }
     
-  // Update with more permissive permissions temporarily
+    // Update with simple user permissions
     await databases.updateCollection(
       DATABASE_ID,
       hostelsCollection.$id,
       hostelsCollection.name,
       [
-        Permission.read(Role.any()),
-        Permission.write(Role.any()), // Allow anyone to write temporarily
-        Permission.update(Role.users("verified")),
-        Permission.delete(Role.team("admin"))
+        Permission.read(Role.users()),
+        Permission.create(Role.users()),
+        Permission.update(Role.users()),
+        Permission.delete(Role.users())
       ]
     );
     
-    console.log('✅ Successfully updated hostels collection permissions temporarily');
+    console.log('✅ Successfully updated hostels collection permissions');
     return true;
   } catch (error) {
     console.error('❌ Error updating hostels collection permissions:', error);
@@ -139,64 +130,28 @@ async function updateAllPermissions() {
 }
 
 /**
- * Create admin team if it doesn't exist
+ * No need for admin team with simplified permissions
  */
 async function setupAdminTeam() {
-  try {
-    console.log('Setting up admin team...');
-    
-    // Check if admin team exists
-    let adminTeam;
-    try {
-      const { teams: teamsList } = await teams.list();
-      adminTeam = teamsList.find(team => team.name.toLowerCase() === 'admin');
-      
-      if (adminTeam) {
-        console.log(`Admin team already exists with ID: ${adminTeam.$id}`);
-      }
-    } catch (error) {
-      console.log('Error checking for existing teams:', error);
-    }
-    
-    // Create admin team if it doesn't exist
-    if (!adminTeam) {
-      console.log('Creating admin team...');
-      adminTeam = await teams.create(ID.unique(), 'Admin', []);
-      console.log(`✅ Admin team created with ID: ${adminTeam.$id}`);
-    }
-    
-    // Prompt for admin users
-    console.log('');
-    console.log('==========================================================');
-    console.log('IMPORTANT: After this script completes:');
-    console.log('1. Go to your Appwrite console');
-    console.log('2. Navigate to Auth > Teams');
-    console.log('3. Add admin users to the "Admin" team');
-    console.log('==========================================================');
-    console.log('');
-    
-    return adminTeam.$id;
-  } catch (error) {
-    console.error('❌ Error setting up admin team:', error);
-    return null;
-  }
+  console.log('Skipping admin team setup - using simplified user-based permissions');
+  console.log('Role-based access control will be handled in application logic');
+  return null;
 }
 
 // Main execution sequence
 async function main() {
   try {
-    // First setup the admin team
-    await setupAdminTeam();
+    console.log('Starting simplified permissions update...');
     
-    // Then update all collection permissions
+    // Update all collection permissions with simple user-based access
     await updateAllPermissions();
     
     console.log('');
     console.log('==========================================================');
-    console.log('NEXT STEPS:');
-    console.log('1. Go to Appwrite Console > Auth > Teams');
-    console.log('2. Add your admin users to the "Admin" team');
-    console.log('3. Any user in the Admin team will now have admin permissions');
+    console.log('SIMPLIFIED PERMISSIONS APPLIED:');
+    console.log('- All authenticated users can read, create, update, and delete');
+    console.log('- Role-based restrictions handled in application logic');
+    console.log('- No teams required - check user.role in your app code');
     console.log('==========================================================');
     
     console.log('Permission update process completed');

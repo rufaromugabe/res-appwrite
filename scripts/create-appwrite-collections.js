@@ -76,7 +76,7 @@ async function createUsersCollection() {
       collections.USERS,
       'Users',
       [
-        Permission.read(Role.any()),
+        Permission.read(Role.users()),
         Permission.create(Role.users()),
         Permission.update(Role.users()),
         Permission.delete(Role.users())
@@ -106,9 +106,10 @@ async function createStudentsCollection() {
       collections.STUDENTS,
       'Students',
       [
-        Permission.read(Role.any()),        Permission.create(Role.users()),
+        Permission.read(Role.users()),
+        Permission.create(Role.users()),
         Permission.update(Role.users()),
-        Permission.delete(Role.team('admins'))
+        Permission.delete(Role.users())
       ]
     );
     
@@ -144,11 +145,10 @@ async function createApplicationsCollection() {
       collections.APPLICATIONS,
       'Applications',
       [
-        Permission.read(Role.team('admins')),
         Permission.read(Role.users()),
         Permission.create(Role.users()),
-        Permission.update(Role.team('admins')),
-        Permission.update(Role.users())
+        Permission.update(Role.users()),
+        Permission.delete(Role.users())
       ]
     );
     
@@ -183,10 +183,10 @@ async function createHostelsCollection() {
       collections.HOSTELS,
       'Hostels',
       [
-        Permission.read(Role.any()),
-        Permission.create(Role.team('admins')),
-        Permission.update(Role.team('admins')),
-        Permission.delete(Role.team('admins'))
+        Permission.read(Role.users()),
+        Permission.create(Role.users()),
+        Permission.update(Role.users()),
+        Permission.delete(Role.users())
       ]
     );
     
@@ -218,10 +218,10 @@ async function createRoomsCollection() {
       collections.ROOMS,
       'Rooms',
       [
-        Permission.read(Role.any()),
-        Permission.create(Role.team('admins')),
-        Permission.update(Role.team('admins')),
-        Permission.delete(Role.team('admins'))
+        Permission.read(Role.users()),
+        Permission.create(Role.users()),
+        Permission.update(Role.users()),
+        Permission.delete(Role.users())
       ]
     );
     
@@ -264,10 +264,10 @@ async function createPaymentsCollection() {
       collections.PAYMENTS,
       'Payments',
       [
-        Permission.read(Role.team('admins')),
         Permission.read(Role.users()),
         Permission.create(Role.users()),
-        Permission.update(Role.team('admins'))
+        Permission.update(Role.users()),
+        Permission.delete(Role.users())
       ]
     );
     
@@ -308,11 +308,10 @@ async function createRoomAllocationsCollection() {
       collections.ROOM_ALLOCATIONS,
       'Room Allocations',
       [
-        Permission.read(Role.team('admins')),
         Permission.read(Role.users()),
         Permission.create(Role.users()),
-        Permission.update(Role.team('admins')),
-        Permission.delete(Role.team('admins'))
+        Permission.update(Role.users()),
+        Permission.delete(Role.users())
       ]
     );
     
@@ -351,10 +350,10 @@ async function createSettingsCollection() {
       collections.SETTINGS,
       'Settings',
       [
-        Permission.read(Role.any()),
-        Permission.create(Role.team('admins')),
-        Permission.update(Role.team('admins')),
-        Permission.delete(Role.team('admins'))
+        Permission.read(Role.users()),
+        Permission.create(Role.users()),
+        Permission.update(Role.users()),
+        Permission.delete(Role.users())
       ]
     );
     

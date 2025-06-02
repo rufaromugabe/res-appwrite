@@ -1,236 +1,130 @@
-# Appwrite Permissions Documentation
+# Appwrite Permissions Documentation - SIMPLIFIED
 
-This document outlines how permissions are implemented in the Appwrite-based residence application system.
+This document outlines the simplified permissions implementation in the Appwrite-based residence application system.
 
-## Overview
+## Overview - SIMPLIFIED APPROACH
 
-Appwrite uses a different permission model than Firebase. Instead of server-side rules, Appwrite uses document-level permissions that are set when creating or updating documents.
+We've simplified the permission model to use basic user authentication instead of complex team-based roles. All role-based access control is now handled at the application level rather than the database level.
 
-## Important Update: Using Teams and Roles Correctly
+## Simplified Permission Structure
 
-### Correct Role Usage
-As of June 2025, we've fixed issues with role specifications. Appwrite requires specific formats:
+### Single Permission Level
+All collections now use the same simple permission structure:
+- `Permission.read(Role.users())` - Any authenticated user can read
+- `Permission.create(Role.users())` - Any authenticated user can create
+- `Permission.update(Role.users())` - Any authenticated user can update  
+- `Permission.delete(Role.users())` - Any authenticated user can delete
 
-- `Role.any()` - Anyone, authenticated or not
-- `Role.users("verified")` - Any authenticated user with a verified email
-- `Role.users("unverified")` - Any authenticated user with an unverified email
-- `Role.team("<team-id>")` - Members of a specific team
-- `Role.user("<user-id>")` - A specific user by ID
+### Role-Based Access Control
+Access control is handled in the application code by checking the user's role property:
+```javascript
+// In your components/hooks
+const { user } = useAppwriteAuth();
+const userDoc = await getUserDocument(user.$id);
+const isAdmin = userDoc.role === 'admin';
 
-### Admin Access via Teams
-For admin functionality, we now use a team-based approach:
-- An "Admin" team is created automatically by the setup script
-- Users must be manually added to this team through the Appwrite Console
-- The application checks for Admin team membership to grant admin privileges
-
-### Running the Permissions Fix
-To update all collection permissions correctly:
-```bash
-npm run fix-permissions
+if (isAdmin) {
+  // Allow admin operations
+} else {
+  // Restrict to user operations
+}
 ```
 
-## Permission Structure
+## Collection Permissions - ALL SIMPLIFIED
 
-### Roles Used
-- `user:{userId}` - Individual user access
-- `team:admin` - Admin team access 
-- `users:verified` - Any verified user
-- `any` - Public access (used sparingly)
-
-### Permission Types
-- `read` - Can read document
-- `write` - Can update document
-- `delete` - Can delete document
-
-## Collection Permissions
-
-### 1. USERS Collection
-**Old Implementation**:
+### All Collections (Users, Students, Applications, Hostels, Rooms, Payments, Room Allocations, Settings)
+**Unified Simple Implementation**:
 ```javascript
-// When creating user document
+// Collection level permissions (applied to all collections)
 permissions: [
-  Permission.read(Role.user(userId)),
-  Permission.write(Role.user(userId)),
-  Permission.read(Role.team('admins')),
-  Permission.write(Role.team('admins')),
-  Permission.delete(Role.team('admins'))
+  Permission.read(Role.users()), // Any authenticated user can read
+  Permission.create(Role.users()), // Any authenticated user can create
+  Permission.update(Role.users()), // Any authenticated user can update
+  Permission.delete(Role.users()) // Any authenticated user can delete
 ]
 ```
 
-**Fixed Implementation**:
+**Application-Level Access Control**:
 ```javascript
-// Collection level permissions
-permissions: [
-  Permission.read(Role.any()), // Anyone can read the users collection
-  Permission.write(Role.users("verified")), // Any verified user can create documents
-  Permission.update(Role.users("verified")), // Any verified user can update
-  Permission.delete(Role.team("admin")) // Only admin team members can delete
-]
+// Check user role in your application code
+const checkAdminAccess = async (userId) => {
+  const userDoc = await databases.getDocument(DATABASE_ID, 'users', userId);
+  return userDoc.role === 'admin';
+};
 
-// Document level permissions (applied programmatically)
-// These are applied when creating/updating individual documents
+// Example usage in components
+const handleAdminAction = async () => {
+  const isAdmin = await checkAdminAccess(user.$id);
+  if (!isAdmin) {
+    toast.error('Admin access required');
+    return;
+  }
+  // Proceed with admin action
+};
 ```
 
-### 2. STUDENTS Collection
-**Firebase Rule**: Similar to users - own profile access + admin access
-**Appwrite Implementation**:
-```javascript
-// When creating student document
-permissions: [
-  Permission.read(Role.user(userId)),
-  Permission.write(Role.user(userId)),
-  Permission.read(Role.team('admins')),
-  Permission.write(Role.team('admins')),
-  Permission.delete(Role.team('admins'))
-]
-```
+## Benefits of Simplified Approach
 
-### 3. APPLICATIONS Collection
-**Firebase Rule**: Students can read/create their own, admins can read/update/delete any
-**Appwrite Implementation**:
-```javascript
-// When creating application document
-permissions: [
-  Permission.read(Role.user(userId)),
-  Permission.write(Role.user(userId)), // For creating only
-  Permission.read(Role.team('admins')),
-  Permission.write(Role.team('admins')),
-  Permission.delete(Role.team('admins'))
-]
-```
+1. **No Team Management**: No need to create or manage teams in Appwrite Console
+2. **Easier Setup**: Single permission structure for all collections
+3. **Application Control**: All access control logic in your application code
+4. **Flexibility**: Easy to modify access rules without database changes
+5. **Debugging**: Clear understanding of who can access what
 
-### 4. HOSTELS Collection
-**Old Implementation**:
-```javascript
-// When creating hostel document
-permissions: [
-  Permission.read(Role.team('students')),
-  Permission.read(Role.team('admins')),
-  Permission.write(Role.team('admins')),
-  Permission.delete(Role.team('admins'))
-]
-```
+## Migration Steps
 
-**Fixed Implementation**:
-```javascript
-// Collection level permissions
-permissions: [
-  Permission.read(Role.any()), // Anyone can read
-  Permission.write(Role.team("admin")), // Only admin team can write
-  Permission.update(Role.team("admin")), // Only admin team can update
-  Permission.delete(Role.team("admin")) // Only admin team can delete
-]
-```
+1. **Update Collection Permissions**:
+   ```powershell
+   node scripts/update-collection-permissions.js
+   ```
 
-**Important Note**: Hostel initialization failures were due to incorrect permission settings. The user needs to be part of the "Admin" team to create or modify hostels.
+2. **Remove Team Dependencies**: Teams are no longer required - simplified permissions apply to all collections
 
-### 5. ROOMS Collection
-**Firebase Rule**: Anyone authenticated can read, only admins can modify
-**Appwrite Implementation**:
-```javascript
-// Rooms are embedded in hostels, so permissions follow hostel permissions
-```
+3. **Update Application Logic**: Ensure your application code checks user roles appropriately
 
-### 6. PAYMENTS Collection
-**Firebase Rule**: Students can read/create/update their own (if pending), admins can do anything
-**Appwrite Implementation**:
-```javascript
-// When creating payment document
-permissions: [
-  Permission.read(Role.user(userId)),
-  Permission.write(Role.user(userId)), // Limited by business logic
-  Permission.read(Role.team('admins')),
-  Permission.write(Role.team('admins')),
-  Permission.delete(Role.team('admins'))
-]
-```
-
-### 7. ROOM_ALLOCATIONS Collection
-**Firebase Rule**: Students can read their own, admins can do anything
-
-## Troubleshooting Common Permission Issues
+## Troubleshooting Common Issues - SIMPLIFIED
 
 ### 1. Authentication Problems
 If you see errors like `Document with the requested ID could not be found`:
-- This happens when a user profile doesn't exist in the Users collection
-- Our system now automatically creates profiles for authenticated users
-- Check that the user ID matches between authentication and the database document
+- Ensure the user is properly authenticated
+- Check that the user document exists in the Users collection
+- Verify the user ID matches between authentication and database
 
-### 2. Authorization Errors (`401 Unauthorized`)
-If you receive 401 errors when creating documents:
-- The user doesn't have write permission for the collection
-- For admin operations (like hostel initialization), ensure:
-  - The user is properly authenticated
-  - The user is a member of the Admin team
-  - The collection permissions are set correctly for team access
+### 2. No More Permission Errors
+With simplified permissions, you should no longer see:
+- `401 Unauthorized` errors for database operations
+- Team membership requirements
+- Complex permission setup issues
 
-### 3. Hostel Initialization Failures
-To fix the hostel initialization issues:
-1. Run `npm run fix-permissions` to update collection permissions
-2. Add the appropriate user(s) to the Admin team in Appwrite Console
-3. Attempt initialization again with an admin user
-
-## Adding Users to the Admin Team
-1. Go to Appwrite Console > Auth > Teams
-2. Select the "Admin" team
-3. Click "Add Membership"
-4. Enter the user's email and add them to the team
-**Appwrite Implementation**:
+### 3. Application-Level Access Control
+All role-based restrictions are now handled in your application:
 ```javascript
-// When creating allocation document
-permissions: [
-  Permission.read(Role.user(userId)),
-  Permission.read(Role.team('admins')),
-  Permission.write(Role.team('admins')),
-  Permission.delete(Role.team('admins'))
-]
-```
-
-### 8. SETTINGS Collection
-**Firebase Rule**: Admins only
-**Appwrite Implementation**:
-```javascript
-// When creating settings document
-permissions: [
-  Permission.read(Role.team('admins')),
-  Permission.write(Role.team('admins')),
-  Permission.delete(Role.team('admins'))
-]
-```
-
-## Implementation Notes
-
-### Team Management
-Teams must be created and managed through Appwrite console or functions:
-- `admins` team: Contains admin users
-- `students` team: Contains all authenticated students (optional, can use individual user permissions)
-
-### Dynamic Permissions
-Some permissions are set dynamically based on business logic:
-- Student payments: Only students can update their own pending payments
-- Applications: Students can only create, admins can update status
-- Allocations: Only admins can create/modify
-
-### Migration Considerations
-1. **Team Setup**: Create admin and student teams in Appwrite
-2. **User Assignment**: Assign users to appropriate teams during authentication
-3. **Document Creation**: Ensure all new documents have proper permissions
-4. **Migration Script**: Set permissions on existing documents during data migration
-
-## Security Benefits
-- **Granular Control**: Document-level permissions provide fine-grained access control
-- **Client-Side Enforcement**: Permissions are enforced at the database level
-- **Team-Based Access**: Easier role management through teams
-- **Audit Trail**: Permission changes are tracked with document versions
-
-## Testing Permissions
-Use the Appwrite console or SDK to test permissions:
-```javascript
-// Test if user can read document
-try {
-  const doc = await databases.getDocument(DATABASE_ID, COLLECTION_ID, documentId);
-  console.log('Read access granted');
-} catch (error) {
-  console.log('Read access denied:', error.message);
+// Example: Protecting admin routes
+if (userRole !== 'admin') {
+  router.push('/unauthorized');
+  return;
 }
+```
+
+## Setup Instructions
+
+### 1. Run Permission Update Script
+```powershell
+node scripts/update-collection-permissions.js
+```
+
+### 2. No Team Setup Required
+- No teams need to be created
+- No users need to be added to teams
+- All access control is in application logic
+
+### 3. User Role Management
+Set user roles directly in the Users collection:
+```javascript
+// When creating a user document
+await databases.createDocument(DATABASE_ID, 'users', userId, {
+  email: user.email,
+  role: 'admin', // or 'user'
+  // other fields...
+});
 ```
