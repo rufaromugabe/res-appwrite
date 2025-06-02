@@ -227,12 +227,12 @@ export function useAppwriteAuth() {
       throw error;
     }
   };
-
   return {
     user,
     userProfile,
     loading,
     role,
+    signIn: signInWithGoogle, // Alias for backward compatibility
     signInWithGoogle,
     handleOAuthCallback,
     signOut,

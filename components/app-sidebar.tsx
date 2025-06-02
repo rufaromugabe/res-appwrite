@@ -31,13 +31,13 @@ import {
 
 import Image from "next/image";
 import Logo from "@/public/hit_logo.png";
-import { useAuth, } from "@/hooks/useAuth"; 
+import { useAuthContext, } from "@/hooks/useAuthContext"; 
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { title } from "process";
 
 export function AppSidebar() {
-  const { user, role, loading, signOut: signOutUser } = useAuth();
+  const { user, role, loading, signOut: signOutUser } = useAuthContext();
   const router = useRouter();
   const pathname = usePathname();
   const [userRole, setUserRole] = useState<string | null>(null);

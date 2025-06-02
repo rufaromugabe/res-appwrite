@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { useAuth } from '@/hooks/useAuth';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { LoadingSpinner } from '@/components/loading-spinner';
@@ -8,7 +8,7 @@ import { AuthProvider } from "@/components/auth-provider";
 import AdminPaymentManagement from "@/components/admin-payment-management";
 
 const PaymentsPage = () => {
-  const { user, loading, role } = useAuth();
+  const { user, loading, role } = useAuthContext();
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(false);
 

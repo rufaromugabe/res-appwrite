@@ -1,9 +1,23 @@
 // Script to create Appwrite collections and attributes
 import { Client, Databases, Permission, Role } from 'node-appwrite';
+import * as dotenv from 'dotenv';
+import * as fs from 'fs';
+import * as path from 'path';
+
+// Load environment variables from .env.local
+const envPath = path.resolve(process.cwd(), '.env.local');
+if (fs.existsSync(envPath)) {
+  console.log('Loading environment variables from .env.local');
+  dotenv.config({ path: envPath });
+}
+
+console.log('Appwrite endpoint:', process.env.APPWRITE_ENDPOINT);
+console.log('Appwrite project ID:', process.env.APPWRITE_PROJECT_ID);
+console.log('Appwrite database ID:', process.env.APPWRITE_DATABASE_ID);
 
 const client = new Client();
 client
-  .setEndpoint(process.env.APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1')
+  .setEndpoint(process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1')
   .setProject(process.env.APPWRITE_PROJECT_ID)
   .setKey(process.env.APPWRITE_API_KEY); // Server API key needed for collection creation
 
@@ -21,19 +35,9 @@ const collections = {
   STUDENTS: 'students' // Added for student profiles
 };
 
-async function createCollections() {
-  try {
-    // Create database first
-    try {
-      await databases.create(DATABASE_ID, 'Residence Application Database');
-      console.log('✅ Database created successfully');
-    } catch (error) {
-      if (error.code === 409) {
-        console.log('ℹ️ Database already exists');
-      } else {
-        throw error;
-      }
-    }
+async function createCollections() {  try {
+    // Skip database creation and use existing database
+    console.log(`Using existing database with ID: ${DATABASE_ID}`);
 
     // 1. Users Collection
     await createUsersCollection();
@@ -67,23 +71,21 @@ async function createCollections() {
 }
 
 async function createUsersCollection() {
-  try {
-    await databases.createCollection(
+  try {    await databases.createCollection(
       DATABASE_ID,
       collections.USERS,
       'Users',
       [
         Permission.read(Role.any()),
         Permission.create(Role.users()),
-        Permission.update(Role.user('[USER_ID]')),
-        Permission.delete(Role.user('[USER_ID]'))
+        Permission.update(Role.users()),
+        Permission.delete(Role.users())
       ]
     );
     
-    // Add attributes
-    await databases.createStringAttribute(DATABASE_ID, collections.USERS, 'displayName', 255, false);
+    // Add attributes    await databases.createStringAttribute(DATABASE_ID, collections.USERS, 'displayName', 255, false);
     await databases.createEmailAttribute(DATABASE_ID, collections.USERS, 'email', true);
-    await databases.createEnumAttribute(DATABASE_ID, collections.USERS, 'role', ['user', 'admin'], true, 'user');
+    await databases.createEnumAttribute(DATABASE_ID, collections.USERS, 'role', ['user', 'admin'], true);
     await databases.createDatetimeAttribute(DATABASE_ID, collections.USERS, 'createdAt', true);
     await databases.createDatetimeAttribute(DATABASE_ID, collections.USERS, 'lastLoginAt', false);
     
@@ -104,9 +106,8 @@ async function createStudentsCollection() {
       collections.STUDENTS,
       'Students',
       [
-        Permission.read(Role.any()),
-        Permission.create(Role.users()),
-        Permission.update(Role.user('[USER_ID]')),
+        Permission.read(Role.any()),        Permission.create(Role.users()),
+        Permission.update(Role.users()),
         Permission.delete(Role.team('admins'))
       ]
     );
@@ -144,17 +145,17 @@ async function createApplicationsCollection() {
       'Applications',
       [
         Permission.read(Role.team('admins')),
-        Permission.read(Role.user('[USER_ID]')),
+        Permission.read(Role.users()),
         Permission.create(Role.users()),
         Permission.update(Role.team('admins')),
-        Permission.update(Role.user('[USER_ID]'))
+        Permission.update(Role.users())
       ]
     );
     
     // Add attributes
     await databases.createStringAttribute(DATABASE_ID, collections.APPLICATIONS, 'regNumber', 50, true);
     await databases.createStringAttribute(DATABASE_ID, collections.APPLICATIONS, 'preferredHostel', 255, false);
-    await databases.createEnumAttribute(DATABASE_ID, collections.APPLICATIONS, 'status', ['Pending', 'Accepted', 'Archived'], true, 'Pending');
+    await databases.createEnumAttribute(DATABASE_ID, collections.APPLICATIONS, 'status', ['Pending', 'Accepted', 'Archived'], true);
     await databases.createStringAttribute(DATABASE_ID, collections.APPLICATIONS, 'paymentStatus', 50, false, 'Not Paid');
     await databases.createStringAttribute(DATABASE_ID, collections.APPLICATIONS, 'reference', 255, false);
     await databases.createDatetimeAttribute(DATABASE_ID, collections.APPLICATIONS, 'submittedAt', true);
@@ -191,12 +192,11 @@ async function createHostelsCollection() {
     
     // Add attributes
     await databases.createStringAttribute(DATABASE_ID, collections.HOSTELS, 'name', 255, true);
-    await databases.createStringAttribute(DATABASE_ID, collections.HOSTELS, 'description', 1000, false);
-    await databases.createIntegerAttribute(DATABASE_ID, collections.HOSTELS, 'totalCapacity', true, 0);
-    await databases.createIntegerAttribute(DATABASE_ID, collections.HOSTELS, 'currentOccupancy', true, 0, undefined, 0);
+    await databases.createStringAttribute(DATABASE_ID, collections.HOSTELS, 'description', 1000, false);    await databases.createIntegerAttribute(DATABASE_ID, collections.HOSTELS, 'totalCapacity', true);
+    await databases.createIntegerAttribute(DATABASE_ID, collections.HOSTELS, 'currentOccupancy', true);
     await databases.createEnumAttribute(DATABASE_ID, collections.HOSTELS, 'gender', ['Male', 'Female', 'Mixed'], true);
-    await databases.createBooleanAttribute(DATABASE_ID, collections.HOSTELS, 'isActive', true, true);
-    await databases.createFloatAttribute(DATABASE_ID, collections.HOSTELS, 'pricePerSemester', true, 0);
+    await databases.createBooleanAttribute(DATABASE_ID, collections.HOSTELS, 'isActive', true);
+    await databases.createFloatAttribute(DATABASE_ID, collections.HOSTELS, 'pricePerSemester', true);
     await databases.createStringAttribute(DATABASE_ID, collections.HOSTELS, 'features', 2000, false); // JSON string
     await databases.createStringAttribute(DATABASE_ID, collections.HOSTELS, 'images', 2000, false); // JSON string
     await databases.createDatetimeAttribute(DATABASE_ID, collections.HOSTELS, 'createdAt', true);
@@ -234,10 +234,10 @@ async function createRoomsCollection() {
     await databases.createIntegerAttribute(DATABASE_ID, collections.ROOMS, 'capacity', true, 1, 10);
     await databases.createStringAttribute(DATABASE_ID, collections.ROOMS, 'occupants', 2000, false); // JSON string array
     await databases.createEnumAttribute(DATABASE_ID, collections.ROOMS, 'gender', ['Male', 'Female', 'Mixed'], true);
-    await databases.createBooleanAttribute(DATABASE_ID, collections.ROOMS, 'isReserved', true, false);
+    await databases.createBooleanAttribute(DATABASE_ID, collections.ROOMS, 'isReserved', false, false); // Changed from true to false - can't have required=true with default value
     await databases.createStringAttribute(DATABASE_ID, collections.ROOMS, 'reservedBy', 255, false);
     await databases.createDatetimeAttribute(DATABASE_ID, collections.ROOMS, 'reservedUntil', false);
-    await databases.createBooleanAttribute(DATABASE_ID, collections.ROOMS, 'isAvailable', true, true);
+    await databases.createBooleanAttribute(DATABASE_ID, collections.ROOMS, 'isAvailable', false, true); // Changed from true to false - can't have required=true with default value
     await databases.createStringAttribute(DATABASE_ID, collections.ROOMS, 'features', 1000, false); // JSON string
     await databases.createFloatAttribute(DATABASE_ID, collections.ROOMS, 'price', true, 0);
     await databases.createDatetimeAttribute(DATABASE_ID, collections.ROOMS, 'paymentDeadline', false);
@@ -265,7 +265,7 @@ async function createPaymentsCollection() {
       'Payments',
       [
         Permission.read(Role.team('admins')),
-        Permission.read(Role.user('[USER_ID]')),
+        Permission.read(Role.users()),
         Permission.create(Role.users()),
         Permission.update(Role.team('admins'))
       ]
@@ -278,7 +278,7 @@ async function createPaymentsCollection() {
     await databases.createFloatAttribute(DATABASE_ID, collections.PAYMENTS, 'amount', true, 0);
     await databases.createEnumAttribute(DATABASE_ID, collections.PAYMENTS, 'paymentMethod', ['Bank Transfer', 'Mobile Money', 'Cash', 'Card', 'Other'], true);
     await databases.createDatetimeAttribute(DATABASE_ID, collections.PAYMENTS, 'submittedAt', true);
-    await databases.createEnumAttribute(DATABASE_ID, collections.PAYMENTS, 'status', ['Pending', 'Approved', 'Rejected'], true, 'Pending');
+    await databases.createEnumAttribute(DATABASE_ID, collections.PAYMENTS, 'status', ['Pending', 'Approved', 'Rejected'], true);
     await databases.createStringAttribute(DATABASE_ID, collections.PAYMENTS, 'approvedBy', 255, false);
     await databases.createDatetimeAttribute(DATABASE_ID, collections.PAYMENTS, 'approvedAt', false);
     await databases.createStringAttribute(DATABASE_ID, collections.PAYMENTS, 'rejectionReason', 500, false);
@@ -309,7 +309,7 @@ async function createRoomAllocationsCollection() {
       'Room Allocations',
       [
         Permission.read(Role.team('admins')),
-        Permission.read(Role.user('[USER_ID]')),
+        Permission.read(Role.users()),
         Permission.create(Role.users()),
         Permission.update(Role.team('admins')),
         Permission.delete(Role.team('admins'))
@@ -321,7 +321,7 @@ async function createRoomAllocationsCollection() {
     await databases.createStringAttribute(DATABASE_ID, collections.ROOM_ALLOCATIONS, 'roomId', 50, true);
     await databases.createStringAttribute(DATABASE_ID, collections.ROOM_ALLOCATIONS, 'hostelId', 50, true);
     await databases.createDatetimeAttribute(DATABASE_ID, collections.ROOM_ALLOCATIONS, 'allocatedAt', true);
-    await databases.createEnumAttribute(DATABASE_ID, collections.ROOM_ALLOCATIONS, 'paymentStatus', ['Pending', 'Paid', 'Overdue'], true, 'Pending');
+    await databases.createEnumAttribute(DATABASE_ID, collections.ROOM_ALLOCATIONS, 'paymentStatus', ['Pending', 'Paid', 'Overdue'], true);
     await databases.createDatetimeAttribute(DATABASE_ID, collections.ROOM_ALLOCATIONS, 'paymentDeadline', true);
     await databases.createStringAttribute(DATABASE_ID, collections.ROOM_ALLOCATIONS, 'semester', 50, true);
     await databases.createStringAttribute(DATABASE_ID, collections.ROOM_ALLOCATIONS, 'academicYear', 20, true);
@@ -359,10 +359,10 @@ async function createSettingsCollection() {
     );
     
     // Add attributes
-    await databases.createIntegerAttribute(DATABASE_ID, collections.SETTINGS, 'paymentGracePeriod', true, 0, 168, 24); // Hours
-    await databases.createBooleanAttribute(DATABASE_ID, collections.SETTINGS, 'autoRevokeUnpaidAllocations', true, true);
-    await databases.createIntegerAttribute(DATABASE_ID, collections.SETTINGS, 'maxRoomCapacity', true, 1, 10, 4);
-    await databases.createBooleanAttribute(DATABASE_ID, collections.SETTINGS, 'allowMixedGender', true, false);
+    await databases.createIntegerAttribute(DATABASE_ID, collections.SETTINGS, 'paymentGracePeriod', false, 0, 168, 24); // Changed from true to false - can't have required=true with default value
+    await databases.createBooleanAttribute(DATABASE_ID, collections.SETTINGS, 'autoRevokeUnpaidAllocations', false, true); // Changed from true to false - can't have required=true with default value
+    await databases.createIntegerAttribute(DATABASE_ID, collections.SETTINGS, 'maxRoomCapacity', false, 1, 10, 4); // Changed from true to false - can't have required=true with default value
+    await databases.createBooleanAttribute(DATABASE_ID, collections.SETTINGS, 'allowMixedGender', false, false); // Changed from true to false - can't have required=true with default value
     await databases.createDatetimeAttribute(DATABASE_ID, collections.SETTINGS, 'updatedAt', true);
     await databases.createStringAttribute(DATABASE_ID, collections.SETTINGS, 'updatedBy', 255, false);
     

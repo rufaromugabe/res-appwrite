@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { toast } from 'react-toastify';
 import Image from 'next/image';
 import Logo from '@/public/hit_logo.png';
@@ -9,7 +9,7 @@ import BackgroundImage from '@/public/acbackground.jpg';
 import { motion } from 'framer-motion';
 
 export default function LoginPage() {
-  const { signIn } = useAuth();
+  const { signIn } = useAuthContext();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 

@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { useAuth } from '@/hooks/useAuth';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { LoadingSpinner } from '@/components/loading-spinner';
@@ -9,7 +9,7 @@ import StudentPaymentManagement from "@/components/student-payment-management";
 import { User } from "lucide-react";
 
 const StudentPaymentsPage = () => {
-  const { user, loading, role } = useAuth();
+  const { user, loading, role } = useAuthContext();
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(false);
 

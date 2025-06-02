@@ -1,13 +1,13 @@
 "use client";
 import React from "react";
-import { useAuth } from '@/hooks/useAuth';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { AuthProvider } from "@/components/auth-provider";
 import Settings from "@/components/settings";
 
 const page = () => {
-  const { user, loading, role } = useAuth();
+  const { user, loading, role } = useAuthContext();
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(false);
 

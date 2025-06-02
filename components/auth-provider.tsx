@@ -1,12 +1,12 @@
 'use client'
 
 import React from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAppwriteAuth } from '@/hooks/useAppwriteAuth';
 
-export const AuthContext = React.createContext<ReturnType<typeof useAuth> | null>(null);
+export const AuthContext = React.createContext<ReturnType<typeof useAppwriteAuth> | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const auth = useAuth();
+  const auth = useAppwriteAuth();
 
   return (
     <AuthContext.Provider value={auth}>

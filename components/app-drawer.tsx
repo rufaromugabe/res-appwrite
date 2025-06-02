@@ -29,13 +29,13 @@ import {
 } from "@/components/ui/sidebar";
 import Image from "next/image";
 import Logo from "@/public/hit_logo.png";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuthContext } from "@/hooks/useAuthContext";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import clsx from "clsx";
 
 export function AppDrawer({ children }: { children: React.ReactNode }) {
-  const { user, role, loading, signOut: signOutUser } = useAuth();
+  const { user, role, loading, signOut: signOutUser } = useAuthContext();
   const router = useRouter();
   const pathname = usePathname();
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -120,7 +120,7 @@ export function AppDrawer({ children }: { children: React.ReactNode }) {
 
         {/* Right side - Placeholder */}
         <div className="ml-auto flex items-center space-x-4">
-          <p> {user?.displayName|| "User"}</p>
+          <p> {user?.name || "User"}</p>
         </div>
       </header>
 
