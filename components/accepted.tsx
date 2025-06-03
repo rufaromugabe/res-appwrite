@@ -5,10 +5,9 @@ import { BarChart2, Users, PieChart, Printer, Upload, Home, MapPin } from 'lucid
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { getAuth } from "firebase/auth";
-import { fetchAllApplications } from "@/data/firebase-data";
-import { fetchStudentAllocations, getRoomDetailsFromAllocation } from "@/data/hostel-data";
-import { setDoc, collection, getFirestore, doc, getDocs, deleteDoc } from "firebase/firestore";
+import { fetchAllApplications } from "@/data/appwrite-data";
+import { fetchAllocationByStudent, getRoomDetailsFromAllocation } from "@/data/appwrite-hostel-data";
+import { useAuthContext } from "@/hooks/useAuthContext";
 import { Pie, Bar } from "react-chartjs-2";
 import { Chart as ChartJS, Title, Tooltip, Legend, ArcElement, CategoryScale, LinearScale, BarElement } from "chart.js";
 import { toast } from "react-toastify";
@@ -52,6 +51,7 @@ const StatisticsSkeleton = () => (
 
 
 const Accepted = () => {
+  const { user } = useAuthContext();
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -83,16 +83,15 @@ const Accepted = () => {
       
       for (const app of acceptedApps) {
         try {
-          const allocations = await fetchStudentAllocations(app.regNumber);
-          if (allocations.length > 0) {
-            const allocation = allocations[0]; // Get the most recent allocation
+          const allocation = await fetchAllocationByStudent(app.regNumber);
+          if (allocation) {
             const roomDetails = await getRoomDetailsFromAllocation(allocation);
             
             if (roomDetails) {
               details[app.regNumber] = {
                 hostelName: roomDetails.hostel.name,
                 roomNumber: roomDetails.room.number,
-                floor: roomDetails.room.floor
+                floor: roomDetails.room.floorName || roomDetails.room.floor
               };
             }
           }
@@ -144,9 +143,7 @@ const Accepted = () => {
     setConfirmDialogOpen(false);
     setPublishing(true);
     try {
-      const db = getFirestore();
-      const activityLogsCollectionRef = collection(db, "ActivityLogs");
-      const adminEmail = getAuth().currentUser?.email || "Unknown Admin";
+      const adminEmail = user?.email || "Unknown Admin";
       const publishedList = acceptedApplications.map((app) => ({
         name: app.name,
         gender: app.gender,
@@ -160,11 +157,9 @@ const Accepted = () => {
       });
       if (!response.ok) throw new Error("Failed to save the published list");
 
-      await setDoc(doc(activityLogsCollectionRef), {
-        adminEmail,
-        activity: "Published the list of accepted applications",
-        timestamp: new Date().toISOString(),
-      });
+      // TODO: Implement activity logging with Appwrite
+      console.log(`Admin ${adminEmail} published the list of accepted applications`);
+      
       toast.success("Published list saved successfully!");
     } catch (error) {
       toast.error("Failed to publish list. Please try again.");
@@ -174,22 +169,11 @@ const Accepted = () => {
   };
 
   const handlePrint = () => {
-    const adminEmail = getAuth().currentUser?.email || "Unknown Admin";
-    const db = getFirestore();
-    const activityLogsCollectionRef = collection(db, "ActivityLogs");
-  
-    setDoc(doc(activityLogsCollectionRef), {
-      adminEmail,
-      activity: "Printed the accepted applications list",
-      timestamp: new Date().toISOString(),
-    })
-      .then(() => {
-        console.log("Activity logged successfully.");
-      })
-      .catch((error) => {
-        console.error("Error logging activity:", error);
-      });
-  
+    const adminEmail = user?.email || "Unknown Admin";
+    
+    // TODO: Implement activity logging with Appwrite
+    console.log(`Admin ${adminEmail} printed the accepted applications list`);
+    
     window.print();
   };  const handleExportExcel = () => {
     const headers = ['Name', 'Email', 'Registration Number', 'Gender', 'Programme', 'Hostel', 'Room Number', 'Floor'];

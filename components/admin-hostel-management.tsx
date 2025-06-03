@@ -46,12 +46,13 @@ import {
   removeRoom,
   removeFloor,
   removeOccupantFromRoom
-} from '@/data/hostel-data';
+} from '@/data/appwrite-hostel-data';
 import { forceInitializeHostelData } from '@/utils/initialize-hostels';
-import { getAuth } from 'firebase/auth';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 const AdminHostelManagement: React.FC = () => {
+  const { user } = useAuthContext();
   const [hostels, setHostels] = useState<Hostel[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedHostel, setSelectedHostel] = useState<Hostel | null>(null);
@@ -217,8 +218,7 @@ const AdminHostelManagement: React.FC = () => {
     const days = window.prompt(`Reserve room ${roomNumber} for how many days?`, '30');
     if (days && !isNaN(Number(days))) {
       try {
-        const auth = getAuth();
-        const adminEmail = auth.currentUser?.email || 'Unknown Admin';
+        const adminEmail = user?.email || 'Unknown Admin';
         
         await reserveRoom(roomId, hostelId, adminEmail, Number(days));
         toast.success(`Room ${roomNumber} reserved successfully for ${days} days`);

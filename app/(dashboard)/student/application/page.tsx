@@ -1,9 +1,17 @@
-import StudentApplicationForm from "@/components/student-application";
+"use client";
 import React from "react";
+import { AuthProvider } from "@/components/auth-provider";
+import { StudentGuard } from "@/components/auth-guard";
+import StudentApplicationForm from "@/components/student-application";
 
-const page = () => {
-
-  return <StudentApplicationForm  />;
+const StudentApplicationPage = () => {
+  return (
+    <AuthProvider>
+      <StudentGuard>
+        <StudentApplicationForm />
+      </StudentGuard>
+    </AuthProvider>
+  );
 };
 
-export default page;
+export default StudentApplicationPage;

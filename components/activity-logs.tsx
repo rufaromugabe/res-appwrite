@@ -1,13 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Input } from "./ui/input";
-import { collection, getDocs, query, orderBy, getFirestore, startAfter, limit, QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-
-const PAGE_SIZE = 10; // Number of logs to fetch per page
+import { useAuthContext } from "@/hooks/useAuthContext";
 
 const Skeleton = ({ rows = 5, columns = 6 }) => (
   <div className="animate-pulse">
@@ -22,60 +20,19 @@ const Skeleton = ({ rows = 5, columns = 6 }) => (
 );
 
 const Logs = () => {
+  const { user } = useAuthContext();
   const [logs, setLogs] = useState<any[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [dateRange, setDateRange] = useState<{ startDate: Date | null; endDate: Date | null }>({ startDate: null, endDate: null });
-  const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
-  const [hasMore, setHasMore] = useState(true);
-  
-  const db = getFirestore();
-  const observerRef = useRef(null);
 
-  const fetchLogs = useCallback(async (paginate = false) => {
-    if (!hasMore && paginate) return;
-    setLoading(true);
-    try {
-      let logsQuery = query(
-        collection(db, "ActivityLogs"),
-        orderBy("timestamp", "desc"),
-        lastDoc ? startAfter(lastDoc) : limit(PAGE_SIZE)
-      );
-      
-      const querySnapshot = await getDocs(logsQuery);
-      const logsData = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      
-      if (paginate) {
-        setLogs((prevLogs) => [...prevLogs, ...logsData]);
-      } else {
-        setLogs(logsData);
-      }
-      
-      setLastDoc(querySnapshot.docs[querySnapshot.docs.length - 1] || null);
-      setHasMore(querySnapshot.docs.length === PAGE_SIZE);
-    } catch (error) {
-      console.error("Error fetching logs:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [db, lastDoc, hasMore]);
-
+  // TODO: Implement activity logging with Appwrite
+  // For now, show empty state with explanation
   useEffect(() => {
-    fetchLogs();
+    // Temporary empty logs for demonstration
+    setLogs([]);
+    setLoading(false);
   }, []);
-
-  const handleObserver = useCallback((entries: any[]) => {
-    const target = entries[0];
-    if (target.isIntersecting) {
-      fetchLogs(true);
-    }
-  }, [fetchLogs]);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(handleObserver, { threshold: 1 });
-    if (observerRef.current) observer.observe(observerRef.current);
-    return () => observer.disconnect();
-  }, [handleObserver]);
 
   const filteredLogs = logs.filter((log) => {
     const matchesQuery =
@@ -138,7 +95,7 @@ const Logs = () => {
           </TableBody>
         </Table>
       )}
-      <div ref={observerRef} className="h-10"></div>
+      {/* <div ref={observerRef} className="h-10"></div> */}
     </div>
   );
 };

@@ -29,32 +29,20 @@ import {
 } from "@/components/ui/sidebar";
 import Image from "next/image";
 import Logo from "@/public/hit_logo.png";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuthContext } from "@/hooks/useAuthContext";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import clsx from "clsx";
 
 export function AppDrawer({ children }: { children: React.ReactNode }) {
-  const { user, role, loading, signOut: signOutUser } = useAuth();
+  const { user, role, loading, signOut } = useAuthContext();
   const router = useRouter();
   const pathname = usePathname();
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [isOpen, setIsOpen] = useState(false); // Manage drawer visibility
-
-  useEffect(() => {
-    if (!loading) {
-      if (!user) {
-        router.push("/login");
-      } else {
-        setUserRole(role);
-      }
-    }
-  }, [user, role, loading, router]);
+  const [isOpen, setIsOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
-      await signOutUser();
-      router.push("/login");
+      await signOut();
     } catch (error) {
       console.error("Logout failed:", error);
     }
@@ -65,22 +53,21 @@ export function AppDrawer({ children }: { children: React.ReactNode }) {
   };
 
   const closeDrawerAndNavigate = (href: string) => {
-    setIsOpen(false); // Close the drawer
+    setIsOpen(false);
     router.push(href); // Navigate to the selected link
-  };
-  const navigationItems = React.useMemo(() => {
-    if (!userRole) return [];
+  };  const navigationItems = React.useMemo(() => {
+    if (!role) return [];
 
     const items = [];
 
-    if (userRole === "user") {
+    if (role === "user") {
       items.push(
         { title: "Profile", icon: UserRound, href: "/student/profile" },
         { title: "Application", icon: SquareArrowOutUpRightIcon, href: "/student/application" },
         { title: "Room Selection", icon: Home, href: "/student/room-selection" },
         { title: "Payments", icon: DollarSign, href: "/student/payments" }
       );
-    } else if (userRole === "admin") {
+    } else if (role === "admin") {
       items.push(
         { title: "Accounts", icon: Users, href: "/admin/accounts" },
         { title: "Applications", icon: Inbox, href: "/admin/applications" },
@@ -97,9 +84,9 @@ export function AppDrawer({ children }: { children: React.ReactNode }) {
     // items.push({ title: "Published", icon: CloudUpload, href: "/accepted-students" });
 
     return items;
-  }, [userRole]);
+  }, [role]);
 
-  if (loading || !userRole) {
+  if (loading || !role) {
     return null;
   }
   return (
@@ -120,7 +107,7 @@ export function AppDrawer({ children }: { children: React.ReactNode }) {
 
         {/* Right side - Placeholder */}
         <div className="ml-auto flex items-center space-x-4">
-          <p> {user?.displayName|| "User"}</p>
+          <p> {user?.name || "User"}</p>
         </div>
       </header>
 
